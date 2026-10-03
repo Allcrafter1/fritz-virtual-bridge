@@ -71,7 +71,7 @@
         }
       },
       "create_entry": {
-        "fritz_configuration": "**{fritz_name}** was created successfully. Open the [FRITZ!OS interface]({fritz_url}) now to assign or configure the virtual device."
+        "default": "**{fritz_name}** was created successfully. Open the [FRITZ!OS interface]({fritz_url}) now to assign or configure the virtual device."
       },
       "error": {
         "already_mapped": "This Home Assistant entity already has a virtual FRITZ device on this bridge.",

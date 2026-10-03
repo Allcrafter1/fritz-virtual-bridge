@@ -5,8 +5,8 @@ FRITZ!Box as native-looking Smart Home devices. They can then be assigned to a
 FRITZ!Smart Control 440 in the normal FRITZ!OS user interface.
 
 The project is an experimental source-only bridge built from a working
-laboratory proof of concept. The validated hardware and firmware combination
-is:
+laboratory proof of concept. Version 0.1.0 is the first public test release;
+it deliberately supports one exact hardware and firmware combination:
 
 - FRITZ!Box 7530 (classic/HW236) as a dedicated bridge
 - FRITZ!OS 8.25 with Freetz-NG
@@ -39,17 +39,17 @@ The guided local build, HACS setup and rollback procedure is documented in
 
 ## Status
 
-The source is currently pre-release software. The dynamic provider, persistent
-registry, MQTT discovery and Home Assistant mapping flow have completed an
-end-to-end laboratory migration test, including a clean source build. A
-direct-pairing latency qualification remains before the first release. The
+The source is experimental software. The dynamic provider, persistent registry,
+MQTT discovery and Home Assistant mapping flow have completed an end-to-end
+laboratory migration test, including a clean source build. Direct pairing of
+the 440 with the bridge box still needs a dedicated latency qualification. The
 compatibility guard refuses to inject the provider into an unknown `aha`
 binary.
 
 The agreed product architecture and user workflow are documented in
-[Architecture](docs/architecture.md). Laboratory protocol evidence remains in
-the separate development workspace and will be reduced to publishable
-protocol documentation before the first release.
+[Architecture](docs/architecture.md). The publishable MQTT contract is in
+[MQTT protocol version 1](docs/mqtt-protocol.md); raw laboratory captures and
+AVM binaries are deliberately excluded from the repository.
 
 The bridge currently supports at most 32 persistent virtual devices. Removing
 a Home Assistant mapping also removes its native FRITZ!OS device and releases
@@ -64,6 +64,7 @@ and still needs a dedicated qualification run.
 
 ## License
 
-Original project code is licensed under the permissive MIT License. Third-party
-components retain their own licenses. See [LICENSE](LICENSE) and
-[NOTICE](NOTICE).
+Original project code is dual-licensed under your choice of the permissive
+[Apache License 2.0](LICENSE) or [MIT License](LICENSE-MIT). The MIT option keeps
+the Freetz-NG package compatible with GPL-2.0-only code. Third-party components
+retain their own licenses. See [NOTICE](NOTICE).

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """MQTT runtime for FRITZ! Virtual Bridge."""
 
 from __future__ import annotations

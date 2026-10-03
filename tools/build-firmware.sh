@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 set -euo pipefail
 
 readonly FREETZ_COMMIT="995afdf2ded44fbb342e69e5941d9ad36a274e93"

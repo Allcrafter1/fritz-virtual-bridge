@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0
 /* MQTT transport and durable desired-state registry. AVM runs separately. */
 #define _GNU_SOURCE
 #include <mosquitto.h>

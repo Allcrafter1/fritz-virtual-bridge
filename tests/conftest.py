@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Test bootstrap for modules that do not require Home Assistant."""
 
 import sys

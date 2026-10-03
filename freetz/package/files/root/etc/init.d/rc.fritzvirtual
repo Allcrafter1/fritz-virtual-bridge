@@ -1,5 +1,5 @@
 #!/bin/sh
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 
 DAEMON=fritzvirtual
 DAEMON_LONG_NAME="FRITZ! Virtual Bridge"

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Tests for the Zigbee2MQTT 5+2 thermostat schedule adapter."""
 
 from datetime import UTC, datetime

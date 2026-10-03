@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 #ifndef FVB_DEVICE_REGISTRY_H
 #define FVB_DEVICE_REGISTRY_H
 #include <stddef.h>

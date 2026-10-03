@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Config flow for FRITZ! Virtual Bridge."""
 
 from __future__ import annotations
@@ -262,7 +262,6 @@ class VirtualDeviceSubentryFlow(ConfigSubentryFlow):
                     title=fritz_name,
                     data=data,
                     unique_id=endpoint_uid,
-                    description="fritz_configuration",
                     description_placeholders={
                         "fritz_name": fritz_name,
                         "fritz_url": self._get_entry().data.get(

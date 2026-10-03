@@ -14,8 +14,8 @@ is therefore an explicit allowlist, never a broad version claim.
 | Mesh master used in tests | FRITZ!Box 6690 Cable, FRITZ!OS 8.25 |
 | Controller used in tests | FRITZ!Smart Control 440, firmware 05.45 |
 
-The first release will refuse startup if bridge model, architecture or `aha`
-fingerprint is unknown. Adding another firmware requires offline protocol
+The provider refuses startup if bridge model, architecture or `aha` fingerprint
+is unknown. Adding another firmware requires offline protocol
 comparison, isolated self-tests and a live laboratory qualification run.
 
 The listed Mesh combination is functionally validated, including exact

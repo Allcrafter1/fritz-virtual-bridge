@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 #define _GNU_SOURCE
 #include "registry_store.h"
 

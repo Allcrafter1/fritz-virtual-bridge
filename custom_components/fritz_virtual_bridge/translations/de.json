@@ -71,7 +71,7 @@
         }
       },
       "create_entry": {
-        "fritz_configuration": "**{fritz_name}** wurde erfolgreich erstellt. Öffne jetzt direkt die [FRITZ!OS-Oberfläche]({fritz_url}), um das virtuelle Gerät zuzuordnen oder zu konfigurieren."
+        "default": "**{fritz_name}** wurde erfolgreich erstellt. Öffne jetzt direkt die [FRITZ!OS-Oberfläche]({fritz_url}), um das virtuelle Gerät zuzuordnen oder zu konfigurieren."
       },
       "error": {
         "already_mapped": "Diese Home-Assistant-Entität besitzt auf dieser Bridge bereits ein virtuelles FRITZ-Gerät.",

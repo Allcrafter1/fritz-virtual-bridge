@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0
 /* Supported only for the fingerprinted FRITZ!OS 8.25 ARM aha build. Preload
  * into aha, never other daemons. Reuses the genuine Nexus server transport.
  * Dynamic devices are managed through a mode-0600 Unix SEQPACKET control

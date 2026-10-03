@@ -1,6 +1,6 @@
 # Contributing
 
-Changes are welcome under the repository's MIT license. Keep contributions
+Changes are welcome under the repository's MIT OR Apache-2.0 license. Keep contributions
 source-only: never commit an AVM binary, original or modified firmware image,
 FRITZ!Box backup, credential, serial number or unredacted support archive.
 

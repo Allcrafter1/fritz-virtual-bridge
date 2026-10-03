@@ -105,10 +105,11 @@ Then enable **Packages → F → FRITZ! Virtual Bridge** in `make menuconfig`.
    refuses an unsupported `/usr/bin/aha` instead of preloading code into an
    unknown build. The MQTT broker should now contain retained `bridge/info` and
    `bridge/availability` messages.
-6. In HACS open **Custom repositories**, add this repository URL as category
+6. In HACS open **Custom repositories**, add
+   `https://github.com/Allcrafter1/fritz-virtual-bridge` as category
    **Integration**, install **FRITZ! Virtual Bridge**, and restart Home
-   Assistant. Until the first GitHub release, a manual copy of
-   `custom_components/fritz_virtual_bridge` is the development alternative.
+   Assistant. A manual copy of `custom_components/fritz_virtual_bridge` is the
+   development alternative.
 7. Home Assistant discovers the retained bridge announcement and creates its
    integration entry automatically. Open it in **Settings → Devices &
    services**, then use the `+` action labelled **Add virtual FRITZ! device**.

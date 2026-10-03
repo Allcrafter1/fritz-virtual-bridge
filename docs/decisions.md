@@ -6,8 +6,9 @@ The current choices are:
    setup and a native add/reconfigure/remove flow for every mapping.
 2. **Custom integration plus Freetz package.** An HA add-on would need its own
    UI and API authentication and would exclude HA Container/Core users.
-3. **MIT repository.** This keeps the original project code permissive and is
-   compatible with its inclusion in the GPLv2 Freetz-NG build.
+3. **Dual MIT OR Apache-2.0 repository.** Both choices are permissive. The MIT
+   option keeps inclusion in the GPL-2.0-only Freetz-NG build compatible; the
+   Apache-2.0 option adds an explicit patent grant for other uses.
 4. **Source-only firmware distribution.** GitHub never hosts AVM or modified
    firmware images. A pinned build script produces the image locally.
 5. **Conservative first compatibility target.** Public beta supports only the

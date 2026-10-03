@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: MIT OR Apache-2.0
 """Pure protocol translation for FRITZ! Virtual Bridge."""
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 /* Host test: compile with -ffunction-sections -Wl,--gc-sections, cJSON and
  * device_registry.c/registry_store.c. No broker or live Provider is used. */
 #define main mqtt_bridge_program_main

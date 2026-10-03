@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: MIT OR Apache-2.0 */
 #include "device_registry.h"
 #include <assert.h>
 #include <stdio.h>

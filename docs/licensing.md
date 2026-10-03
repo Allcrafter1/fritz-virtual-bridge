@@ -27,8 +27,10 @@ builds the image locally from an original firmware obtained by the user.
 
 ## Project license
 
-Original project code is released under the permissive MIT License. MIT is
-compatible with inclusion in the GPLv2 Freetz-NG build. The resulting local
+Original project code is dual-licensed under `MIT OR Apache-2.0`; every user may
+choose either license. The MIT option is compatible with inclusion in the
+GPL-2.0-only Freetz-NG build, while the Apache-2.0 option provides its explicit
+patent grant for uses where that license is compatible. The resulting local
 firmware contains components under several licenses; this repository claims no
 license over AVM software or third-party projects.
 

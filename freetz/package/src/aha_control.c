@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: MIT OR Apache-2.0
 /* Small local client for native AHA lifecycle operations.  AVM libraries are
  * loaded at runtime and are neither linked into nor distributed by the
  * project. */
