@@ -119,15 +119,17 @@ input helpers.
 ## User workflow
 
 1. Install **FRITZ! Virtual Bridge**. Home Assistant creates an integration
-   entry automatically from the retained MQTT bridge announcement.
-2. Open the bridge entry and use the `+` action labelled
-   **Add virtual FRITZ! device**.
+   entry automatically from the retained MQTT bridge announcement and shows an
+   onboarding notification explaining the otherwise icon-only add action.
+2. Open the bridge entry and use the `+` action in the top-right corner. The
+   following dialog is titled **Add virtual FRITZ! device**.
 3. Select a source entity. The integration proposes the matching profile and
    capabilities; the user can reduce optional capabilities.
 4. Choose a FRITZ device name. The immutable endpoint is created and confirmed
    by the bridge.
-5. Open the bridge device's **Visit** link to FRITZ!OS and place that device on
-   the desired 440 screen position. Screen layout and its short display label
+5. Follow the completion notification's direct FRITZ!OS link and place that
+   device on the desired 440 screen position. The bridge device's **Visit** link
+   remains a permanent alternative. Screen layout and its short display label
    remain FRITZ!OS responsibilities.
 6. Reconfigure a mapping to bind a replacement HA entity while retaining the
    FRITZ identity and 440 assignments.

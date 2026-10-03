@@ -20,6 +20,14 @@ The current choices are:
 8. **The first schedule adapter targets the validated Zigbee2MQTT 5+2 format.**
    Other climate devices work without schedule mirroring until an adapter is
    implemented for their data model.
+9. **Normal configuration stays in web interfaces.** The one-time Linux script
+   builds and interactively installs the modified image. Afterwards FRITZ!OS
+   owns network/Mesh setup, Freetz owns MQTT credentials and Home Assistant owns
+   entity mappings; SSH and manual configuration files are development tools.
+10. **Keep the native Home Assistant subentry UI.** A translated onboarding and
+    completion notification explains the icon-only `+` action and links to
+    FRITZ!OS. A separate frontend panel is deferred until its maintenance cost
+    solves a demonstrated workflow problem.
 
 Changing identity or lifecycle semantics after users have configured several
 440 controllers would be a breaking migration. Permanent deletion and further
