@@ -51,6 +51,7 @@ Other operations are:
 {"schema_version":1,"request_id":"rename-1","operation":"rename_device","uid":"FVB0123456789ABCDEF","name":"Leselicht"}
 {"schema_version":1,"request_id":"disable-1","operation":"set_enabled","uid":"FVB0123456789ABCDEF","enabled":false}
 {"schema_version":1,"request_id":"sync-1","operation":"reconcile_devices","enabled_uids":["FVB0123456789ABCDEF"]}
+{"schema_version":1,"request_id":"prune-1","operation":"prune_devices","keep_uids":["FVB0123456789ABCDEF"]}
 {"schema_version":1,"request_id":"list-1","operation":"list_devices"}
 {"schema_version":1,"request_id":"announce-1","operation":"reannounce"}
 ```
@@ -62,9 +63,12 @@ means it will be applied after the provider reconnects. `flash_persisted`
 reports whether the atomic runtime registry was also committed through
 Freetz's `modsave`.
 
-The bridge persists a valid mutation before changing the running provider.
-Permanent deletion is intentionally absent in version 1; reconciliation
-disables devices missing from Home Assistant while retaining their identities.
+`prune_devices` makes Home Assistant's mapping list authoritative. Devices not
+listed in `keep_uids` are deleted through the local native AHA API, removed
+from the running provider and removed from the persistent bridge registry.
+The operation is retried periodically by Home Assistant and is idempotent.
+`reconcile_devices` remains available for backward compatibility and only
+changes enabled state.
 
 ## Commands from FRITZ!OS
 

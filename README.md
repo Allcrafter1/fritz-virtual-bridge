@@ -27,8 +27,8 @@ Home-Assistant-owned thermostat schedule shadow with the native 440
    the Freetz web interface. Normal use requires no SSH or file editing.
 3. Install the Home Assistant custom integration through HACS.
 4. Add the bridge once, then add one mapping per Home Assistant entity.
-5. Follow the completion notification into FRITZ!OS and assign the generated
-   virtual devices to one or more 440 controllers.
+5. Follow the final wizard page or its persistent notification into FRITZ!OS
+   and assign or configure the generated virtual devices there.
 
 No AVM firmware, AVM program or modified firmware image is distributed by
 this repository. Users build and install their own image. See
@@ -52,8 +52,8 @@ the separate development workspace and will be reduced to publishable
 protocol documentation before the first release.
 
 The bridge currently supports at most 32 persistent virtual devices. Removing
-a Home Assistant mapping disables its FRITZ device and preserves its identity;
-the project does not yet expose permanent deletion.
+a Home Assistant mapping also removes its native FRITZ!OS device and releases
+the corresponding bridge registry slot. Allocated provider IDs are not reused.
 
 The current Mesh-master test topology adds substantial command latency. Tests
 through a 6690 Mesh master to the 7530 bridge consistently delivered absolute

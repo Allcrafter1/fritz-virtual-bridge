@@ -26,6 +26,7 @@ write_mqtt_config() {
 		printf 'registry_file=/tmp/flash/fritzvirtual/registry.json\n'
 		printf 'bridge_id=%s\n' "$FRITZVIRTUAL_BRIDGE_ID"
 		printf 'persist_command=/usr/bin/modsave flash\n'
+		printf 'aha_control=/usr/bin/fritzvirtual-aha-control\n'
 	} >"$MQTT_CONFIG"
 	chmod 600 "$MQTT_CONFIG"
 }

@@ -1,10 +1,12 @@
 {
   "title": "FRITZ! Virtual Bridge",
   "common": {
+    "bridge_entry_title": "{bridge_id} – use + to add a device",
+    "bridge_device_name": "Open the FRITZ!OS interface",
     "bridge_ready_title": "FRITZ! Virtual Bridge is ready",
-    "bridge_ready_message": "Open **Settings → Devices & services → FRITZ! Virtual Bridge** and use the **+** in the top-right corner to add a virtual FRITZ! device. Then open [FRITZ!OS]({fritz_url}) to assign it to a FRITZ!Smart Control 440.",
+    "bridge_ready_message": "Open **Settings → Devices & services → FRITZ! Virtual Bridge** and use the **+** in the top-right corner to add a virtual FRITZ! device. Then open [FRITZ!OS]({fritz_url}) to assign or configure it.",
     "device_created_title": "Virtual FRITZ! device created",
-    "device_created_message": "**{fritz_name}** has been created. Open [FRITZ!OS]({fritz_url}) now to assign the device to a FRITZ!Smart Control 440. Add more virtual devices through the **+** in the top-right corner of the bridge entry."
+    "device_created_message": "**{fritz_name}** has been created. Open [FRITZ!OS]({fritz_url}) now to assign or configure the virtual device. Add more virtual devices through the **+** in the top-right corner of the bridge entry."
   },
   "config": {
     "step": {
@@ -19,7 +21,7 @@
       },
       "reconfigure": {
         "title": "Configure bridge",
-        "description": "The FRITZ!Box URL opens the Smart Home interface used to assign virtual devices to the 440.",
+        "description": "The FRITZ!Box URL opens the Smart Home interface used to assign and configure virtual devices.",
         "data": {
           "topic_root": "MQTT topic root",
           "fritz_url": "FRITZ!Box configuration URL"
@@ -46,14 +48,14 @@
       "step": {
         "user": {
           "title": "Add virtual device",
-          "description": "Choose the Home Assistant entity that the 440 should control.",
+          "description": "Choose the Home Assistant entity to represent as a virtual FRITZ! device.",
           "data": {
             "source_entity_id": "Home Assistant entity"
           }
         },
         "details": {
           "title": "Confirm virtual device",
-          "description": "The closest profile is selected automatically. After saving, a notification links directly to FRITZ!OS for assigning the device to the 440.",
+          "description": "The best matching profile is selected automatically. If you prefer another profile, select it here manually. In the next step, you can assign or configure the virtual device in the FRITZ!OS interface.",
           "data": {
             "profile": "FRITZ device profile",
             "fritz_name": "Name in FRITZ!OS"
@@ -61,12 +63,15 @@
         },
         "reconfigure": {
           "title": "Rebind virtual device",
-          "description": "Changing the source entity or name keeps the FRITZ identity and existing 440 assignments.",
+          "description": "Changing the source entity or name keeps the FRITZ identity and existing assignments.",
           "data": {
             "source_entity_id": "Home Assistant entity",
             "fritz_name": "Name in FRITZ!OS"
           }
         }
+      },
+      "create_entry": {
+        "fritz_configuration": "**{fritz_name}** was created successfully. Open the [FRITZ!OS interface]({fritz_url}) now to assign or configure the virtual device."
       },
       "error": {
         "already_mapped": "This Home Assistant entity already has a virtual FRITZ device on this bridge.",

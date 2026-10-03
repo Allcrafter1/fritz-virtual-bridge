@@ -178,10 +178,11 @@ class FritzVirtualBridge:
         )
 
     async def _async_schedule_tick(self, _now: datetime) -> None:
-        """Refresh every configured rolling schedule window once per minute."""
+        """Refresh schedules and retry the authoritative device set."""
         for uid, mapping in self._mappings.items():
             if CONF_SCHEDULE_WORKDAYS in mapping:
                 await self._async_publish_schedule(uid, mapping)
+        await self._async_publish_reconciliation()
 
     async def _async_publish_schedule(self, uid: str, mapping: dict[str, Any]) -> None:
         """Publish the Home Assistant owned 5+2 schedule shadow."""
@@ -447,12 +448,12 @@ class FritzVirtualBridge:
         )
 
     async def _async_publish_reconciliation(self) -> None:
-        """Disable persisted bridge devices no longer mapped by this entry."""
+        """Permanently remove bridge devices no longer mapped by this entry."""
         payload = {
             "schema_version": PROTOCOL_VERSION,
             "request_id": str(uuid.uuid4()),
-            "operation": "reconcile_devices",
-            "enabled_uids": sorted(self._mappings),
+            "operation": "prune_devices",
+            "keep_uids": sorted(self._mappings),
         }
         await mqtt.async_publish(
             self.hass,

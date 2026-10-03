@@ -116,8 +116,9 @@ Then enable **Packages → F → FRITZ! Virtual Bridge** in `make menuconfig`.
    `fritzvirtual`.
 8. Select one HA entity per virtual device. The integration infers the narrowest
    matching profile; a color-temperature light may deliberately be reduced to
-   a dimmable light. After the wizard, a Home Assistant notification links
-   directly to FRITZ!OS. Assign the resulting device to a 440 position there.
+   a dimmable light. The final wizard page and a persistent Home Assistant
+   notification both link directly to FRITZ!OS. Assign or configure the
+   resulting device there.
 
 A 7530 that already runs Freetz can normally be updated by building without
 `--flash` and uploading the locally produced image through the Freetz web

@@ -62,8 +62,13 @@ static void mutations(void) {
     assert(fvb_registry_rename(&r, 4, uid, "\n") == FVB_REGISTRY_INVALID);
     assert(fvb_registry_rename(&r, 4, "FVB0000000000000000", "Absent") == FVB_REGISTRY_NOT_FOUND);
     assert(!memcmp(&before, &r, sizeof(r)));
+    assert(fvb_registry_add(&r, 4, "FVB0000000000000001", "Second", FVB_PROFILE_SWITCH, NULL) == FVB_REGISTRY_OK);
+    assert(fvb_registry_remove(&r, 5, uid) == FVB_REGISTRY_OK);
+    assert(r.count == 1 && r.revision == 6 && !strcmp(r.devices[0].uid, "FVB0000000000000001"));
+    assert(r.next_remote_id == 458 && r.devices[1].uid[0] == 0);
+    assert(fvb_registry_remove(&r, 6, uid) == FVB_REGISTRY_NOT_FOUND);
     r.revision = UINT64_MAX;
-    assert(fvb_registry_rename(&r, UINT64_MAX, uid, "Overflow") == FVB_REGISTRY_EXHAUSTED);
+    assert(fvb_registry_rename(&r, UINT64_MAX, "FVB0000000000000001", "Overflow") == FVB_REGISTRY_EXHAUSTED);
 }
 static void capacity(void) {
     fvb_device_registry r, before; char key[20]; size_t i;

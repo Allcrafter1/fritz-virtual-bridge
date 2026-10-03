@@ -27,6 +27,7 @@ jobs:
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/virtual_provider.c -pthread
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/provider_ctl.c
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/provider_selftest.c
+      - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/aha_control.c
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/mqtt_bridge.c
       - run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Ifreetz/package/src freetz/package/src/device_registry.c tests/device_registry_test.c -o /tmp/device_registry_test
       - run: /tmp/device_registry_test

@@ -565,10 +565,12 @@ static int dynamic_control(char *cmd,size_t capacity){
         return 1;
     }
     int management=!strcmp(operation,"RENAME")||!strcmp(operation,"ENABLE")||
-        !strcmp(operation,"DISABLE")||!strcmp(operation,"UNIT")||!strcmp(operation,"ANNOUNCE");
+        !strcmp(operation,"DISABLE")||!strcmp(operation,"REMOVE")||
+        !strcmp(operation,"UNIT")||!strcmp(operation,"ANNOUNCE");
     if(!fvb_registry_valid_uid(uid))return management?0:-1;
     const fvb_device *d=fvb_registry_find(&registry,uid);
-    if(!d)return 0;
+    /* REMOVE is deliberately idempotent so an interrupted prune can be retried. */
+    if(!d)return !strcmp(operation,"REMOVE");
     if(!strcmp(operation,"RENAME")){
         if(fvb_registry_rename(&registry,registry.revision,uid,cmd+offset)!=FVB_REGISTRY_OK)return 0;
         if(d->enabled&&server_fd>=0){select_device(d);(void)dynamic_announce(d);unselect_device();}
@@ -581,6 +583,20 @@ static int dynamic_control(char *cmd,size_t capacity){
         unit_generation[d-registry.devices]=0;
         if(on&&server_fd>=0){select_device(d);(void)dynamic_announce(d);unselect_device();}
         /* Disable is administrative: no native removal packet is invented. */
+        return 1;
+    }
+    if(!strcmp(operation,"REMOVE")){
+        if(cmd[offset])return 0;
+        size_t index=(size_t)(d-registry.devices);
+        if(fvb_registry_remove(&registry,registry.revision,uid)!=FVB_REGISTRY_OK)return 0;
+        if(index<registry.count){
+            memmove(&device_values[index],&device_values[index+1],
+                    (registry.count-index)*sizeof(device_values[0]));
+            memmove(&unit_generation[index],&unit_generation[index+1],
+                    (registry.count-index)*sizeof(unit_generation[0]));
+        }
+        memset(&device_values[registry.count],0,sizeof(device_values[0]));
+        unit_generation[registry.count]=0;
         return 1;
     }
     if(!d->enabled)return 0;

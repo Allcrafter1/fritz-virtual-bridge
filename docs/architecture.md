@@ -58,9 +58,10 @@ and all radio-side identities. Existing 440 assignments therefore survive.
 Changing the device profile creates a new virtual device because FRITZ!OS
 capabilities and widget layouts are type-specific.
 
-Removing a mapping first disables it. Physical removal from FRITZ!OS is a
-separate explicit cleanup operation so an accidental Home Assistant deletion
-does not silently destroy every 440 assignment.
+Removing a mapping is authoritative: the bridge calls the local native AHA
+deletion path, removes the provider endpoint and then removes the persistent
+registry entry. Existing controller assignments for that virtual device are
+therefore removed with it. Provider IDs are never reused.
 
 ## Management protocol
 
@@ -71,7 +72,7 @@ The initial public protocol uses schema version 1 beneath
 |---|---|---|
 | `bridge/availability` | bridge -> HA | retained online/offline status |
 | `bridge/info` | bridge -> HA | retained version, capabilities and compatibility |
-| `management/request` | HA -> bridge | versioned upsert/disable/rename request |
+| `management/request` | HA -> bridge | versioned upsert/rename/prune request |
 | `management/response/<request_id>` | bridge -> HA | correlated accepted/error response |
 | `device/<uid>/command` | bridge -> HA | commands from FRITZ!OS or the 440 |
 | `device/<uid>/<property>/set` | HA -> bridge | confirmed HA state and configuration |
@@ -127,10 +128,10 @@ input helpers.
    capabilities; the user can reduce optional capabilities.
 4. Choose a FRITZ device name. The immutable endpoint is created and confirmed
    by the bridge.
-5. Follow the completion notification's direct FRITZ!OS link and place that
-   device on the desired 440 screen position. The bridge device's **Visit** link
-   remains a permanent alternative. Screen layout and its short display label
-   remain FRITZ!OS responsibilities.
+5. Follow the final wizard page's direct FRITZ!OS link and place or configure
+   the device there. The persistent completion notification and the bridge
+   device named **Open the FRITZ!OS interface** remain permanent alternatives.
+   Screen layout and its short display label remain FRITZ!OS responsibilities.
 6. Reconfigure a mapping to bind a replacement HA entity while retaining the
    FRITZ identity and 440 assignments.
 

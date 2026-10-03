@@ -71,7 +71,10 @@ int main(void){
     assert(!candidate("{\"schema_version\":1,\"operation\":\"reconcile_devices\",\"enabled_uids\":[]}",&r,&mutate,&announce));
     assert(!r.devices[0].enabled&&r.count==1);
     assert(!candidate(add,&r,&mutate,&announce));assert(r.devices[0].enabled);
-    assert(!request_id_valid("../../bad")&&!request_id_valid("bad/+"));assert(request_id_valid("id-012_ABC"));
+    fvb_device_registry pruned=r;
+    assert(!candidate("{\"schema_version\":1,\"operation\":\"prune_devices\",\"keep_uids\":[]}",&pruned,&mutate,&announce));
+    assert(mutate&&pruned.count==0&&pruned.next_remote_id==457);
+    assert(!request_id_valid("../../bad")&&!request_id_valid("bad/+"));assert(request_id_valid("id-012_abc"));
     cJSON *nan=cJSON_CreateNumber(NAN);uint64_t integer;assert(!json_integer(nan,&integer));cJSON_Delete(nan);
     registry=r;provider_ready=0;
     feedback(r.devices[0].uid,"level","55");assert(strstr(feedback_cache[0][1],"55"));
@@ -117,6 +120,11 @@ int main(void){
     assert(provider_request("TEST WRONG_ID"));assert(!reconcile_provider_locked()&&!provider_ready);
     assert(provider_request("TEST NAME_CONFLICT"));assert(reconcile_provider_locked());
     status=provider_query("GET");assert(cJSON_GetObjectItem(status,"renamed")->valueint==1);cJSON_Delete(status);
+    strcpy(config.aha_control,"/bin/true");
+    management("{\"schema_version\":1,\"request_id\":\"prune\",\"operation\":\"prune_devices\",\"keep_uids\":[]}");
+    assert(registry.count==0&&registry.next_remote_id==457);
+    response=cJSON_Parse(published_response);assert(cJSON_IsTrue(cJSON_GetObjectItem(response,"accepted")));cJSON_Delete(response);
+    assert(fvb_registry_load_file(config.registry_file,&loaded,error,sizeof(error))&&loaded.count==0&&loaded.next_remote_id==457);
     kill(server,SIGTERM);assert(waitpid(server,NULL,0)==server);unlink(config.control_socket);
     char file[512];snprintf(file,sizeof(file),"%s/registry.json",directory);unlink(file);rmdir(directory);
     puts("mqtt_bridge_test: OK");return 0;

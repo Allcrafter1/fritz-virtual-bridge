@@ -262,6 +262,13 @@ class VirtualDeviceSubentryFlow(ConfigSubentryFlow):
                     title=fritz_name,
                     data=data,
                     unique_id=endpoint_uid,
+                    description="fritz_configuration",
+                    description_placeholders={
+                        "fritz_name": fritz_name,
+                        "fritz_url": self._get_entry().data.get(
+                            CONF_FRITZ_URL, DEFAULT_FRITZ_URL
+                        ),
+                    },
                 )
                 entry = self._get_entry()
                 await _async_notify_device_created(

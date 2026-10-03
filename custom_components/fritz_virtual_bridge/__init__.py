@@ -6,6 +6,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.translation import async_get_translations
 
 from .bridge import FritzVirtualBridge
 from .const import CONF_BRIDGE_ID, CONF_FRITZ_URL, DEFAULT_FRITZ_URL, DOMAIN
@@ -20,10 +21,23 @@ async def async_setup_entry(
     bridge = FritzVirtualBridge(hass, entry)
     await bridge.async_start()
     entry.runtime_data = bridge
+    translations = await async_get_translations(
+        hass, hass.config.language, "common", {DOMAIN}
+    )
+    bridge_id = entry.data[CONF_BRIDGE_ID]
+    entry_title = translations.get(
+        f"component.{DOMAIN}.common.bridge_entry_title",
+        "{bridge_id} - use + to add a device",
+    ).format(bridge_id=bridge_id)
+    if entry.title in {bridge_id, f"FRITZ! Virtual Bridge {bridge_id}"}:
+        hass.config_entries.async_update_entry(entry, title=entry_title)
     dr.async_get(hass).async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, entry.data[CONF_BRIDGE_ID])},
-        name=f"FRITZ! Virtual Bridge {entry.data[CONF_BRIDGE_ID]}",
+        identifiers={(DOMAIN, bridge_id)},
+        name=translations.get(
+            f"component.{DOMAIN}.common.bridge_device_name",
+            "Open the FRITZ!OS interface",
+        ),
         manufacturer="FRITZ! Virtual Bridge project",
         model="Local MQTT bridge",
         configuration_url=entry.data.get(CONF_FRITZ_URL, DEFAULT_FRITZ_URL),

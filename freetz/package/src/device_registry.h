@@ -33,7 +33,7 @@ typedef struct {
     uint64_t revision;
 } fvb_device;
 /* Caller owns storage and serializes access. Read devices through const accessors.
- * No delete/reset-on-reconnect: retain disabled devices and allocator watermark.
+ * Deleted remote IDs are never recycled; the allocator watermark remains durable.
  * Persistence must preserve the entire logical registry, including next_remote_id.
  * init is for a NEW registry only. No pointers or dynamic allocation are stored.
  */
@@ -61,4 +61,6 @@ fvb_registry_result fvb_registry_rename(fvb_device_registry *, uint64_t expected
     const char *uid, const char *name);
 fvb_registry_result fvb_registry_set_enabled(fvb_device_registry *, uint64_t expected_revision,
     const char *uid, int enabled);
+fvb_registry_result fvb_registry_remove(fvb_device_registry *, uint64_t expected_revision,
+    const char *uid);
 #endif

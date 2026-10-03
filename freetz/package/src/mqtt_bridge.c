@@ -27,12 +27,14 @@ struct configuration {
     char host[TEXT_SIZE],username[TEXT_SIZE],password[TEXT_SIZE];
     char client_id[TEXT_SIZE],topic_prefix[TEXT_SIZE],control_socket[TEXT_SIZE];
     char registry_file[TEXT_SIZE],bridge_id[TEXT_SIZE],persist_command[TEXT_SIZE];
+    char aha_control[TEXT_SIZE];
     int port;
 };
 static struct configuration config={
     .client_id="fritzvirtual",.topic_prefix="fritzvirtual/fritzvirtual",
     .control_socket="/var/tmp/aha-virtual-provider.ctl",
     .registry_file="/tmp/flash/fritzvirtual/registry.json",
+    .aha_control="/usr/bin/fritzvirtual-aha-control",
     .persist_command="/usr/bin/modsave flash",.port=1883
 };
 static struct mosquitto *mqtt;
@@ -96,6 +98,7 @@ static int read_config(const char *path){
         SETTING(host);else SETTING(username);else SETTING(password);
         else SETTING(client_id);else SETTING(topic_prefix);else SETTING(control_socket);
         else SETTING(registry_file);else SETTING(bridge_id);else SETTING(persist_command);
+        else SETTING(aha_control);
         else if(!strcmp(key,"port")){char *end;long n=strtol(value,&end,10);valid&=*value&&!*end&&n>0&&n<65536;config.port=(int)n;}
         else {fprintf(stderr,"mqtt_bridge: unknown setting %s\n",key);valid=0;}
 #undef SETTING
@@ -104,6 +107,7 @@ static int read_config(const char *path){
     fclose(file);
     if(!*config.bridge_id)copy_value(config.bridge_id,sizeof(config.bridge_id),config.client_id);
     if(!*config.host||!*config.client_id||!*config.topic_prefix||!*config.control_socket||!*config.registry_file||
+       !*config.aha_control||config.aha_control[0]!='/'||
        !prefix_valid(config.topic_prefix)||!identifier_valid(config.bridge_id,32))valid=0;
     return valid;
 }
@@ -130,6 +134,22 @@ static int provider_request(const char *request){
     cJSON *reply=provider_query(request);
     int ok=reply&&cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(reply,"ok"));
     cJSON_Delete(reply);return ok;
+}
+static int native_delete(const char *uid){
+    pid_t child=fork();
+    if(child<0)return 0;
+    if(!child){
+        char *const arguments[]={config.aha_control,"delete",(char*)uid,NULL};
+        execv(config.aha_control,arguments);_exit(127);
+    }
+    for(unsigned attempt=0;attempt<40;attempt++){
+        int status;pid_t waited=waitpid(child,&status,WNOHANG);
+        if(waited==child)return WIFEXITED(status)&&WEXITSTATUS(status)==0;
+        if(waited<0&&errno!=EINTR)return 0;
+        usleep(100000);
+    }
+    kill(child,SIGKILL);while(waitpid(child,NULL,0)<0&&errno==EINTR){}
+    return 0;
 }
 static int is_hanfun(fvb_device_profile profile){
     return profile==FVB_PROFILE_DIMMABLE_LIGHT||profile==FVB_PROFILE_COLOR_TEMPERATURE_LIGHT||profile==FVB_PROFILE_COVER;
@@ -259,7 +279,7 @@ static int parse_profile(const char *name,fvb_device_profile *profile){
 }
 /* Pure candidate builder, also exercised by the host test. */
 static const char *management_candidate(const cJSON *root,fvb_device_registry *candidate,int *mutate,int *reannounce){
-    static const char *const keys[]={"schema_version","request_id","operation","expected_revision","device","uid","name","enabled","enabled_uids",NULL};
+    static const char *const keys[]={"schema_version","request_id","operation","expected_revision","device","uid","name","enabled","enabled_uids","keep_uids",NULL};
     static const char *const device_keys[]={"uid","profile","name","enabled",NULL};
     uint64_t version,expected;*mutate=0;*reannounce=0;
     if(!keys_valid(root,keys)||!json_integer(cJSON_GetObjectItemCaseSensitive(root,"schema_version"),&version)||version!=1)return "invalid_schema";
@@ -307,6 +327,25 @@ static const char *management_candidate(const cJSON *root,fvb_device_registry *c
             if(result!=FVB_REGISTRY_OK)return "registry_error";
         }
         result=FVB_REGISTRY_OK;
+    }else if(!strcmp(operation,"prune_devices")){
+        const cJSON *uids=cJSON_GetObjectItemCaseSensitive(root,"keep_uids");
+        if(!cJSON_IsArray(uids)||cJSON_GetArraySize(uids)>32)return "invalid_keep_uids";
+        for(const cJSON *uid=uids->child;uid;uid=uid->next){
+            if(!cJSON_IsString(uid)||!fvb_registry_valid_uid(uid->valuestring)||!fvb_registry_find(candidate,uid->valuestring))return "unknown_uid";
+            const fvb_device *known=fvb_registry_find(candidate,uid->valuestring);
+            for(const cJSON *other=uid->next;other;other=other->next)
+                if(cJSON_IsString(other)&&fvb_registry_find(candidate,other->valuestring)==known)return "duplicate_uid";
+        }
+        for(size_t i=candidate->count;i>0;i--){
+            const char *candidate_uid=candidate->devices[i-1].uid;int keep=0;
+            for(const cJSON *uid=uids->child;uid;uid=uid->next)
+                if(fvb_registry_find(candidate,uid->valuestring)==&candidate->devices[i-1])keep=1;
+            if(!keep){
+                result=fvb_registry_remove(candidate,candidate->revision,candidate_uid);
+                if(result!=FVB_REGISTRY_OK)return "registry_error";
+            }
+        }
+        result=FVB_REGISTRY_OK;
     }else return "unknown_operation";
     if(result!=FVB_REGISTRY_OK)return result==FVB_REGISTRY_FULL?"registry_full":result==FVB_REGISTRY_NOT_FOUND?"unknown_uid":"invalid_device";
     *mutate=1;return NULL;
@@ -326,11 +365,30 @@ static void management_locked(const struct mosquitto_message *message){
     char storage_error[256];
     if(!error){
         if(mutate&&candidate.revision!=registry.revision){
-            if(!fvb_registry_save_file(config.registry_file,&candidate,storage_error,sizeof(storage_error)))error="registry_save_failed";
-            else {
-                flash_saved=persist_flash();flash_dirty=!flash_saved;registry=candidate;accepted=1;
-                if(!reconcile_provider_locked())error="provider_pending";
-                if(!flash_saved)error="flash_persist_failed";
+            char removed[FVB_REGISTRY_CAPACITY][FVB_DEVICE_UID_BYTES];size_t removed_count=0;
+            for(size_t i=0;i<registry.count;i++)if(!fvb_registry_find(&candidate,registry.devices[i].uid))
+                strcpy(removed[removed_count++],registry.devices[i].uid);
+            for(size_t i=0;i<removed_count&&!error;i++)if(!native_delete(removed[i]))error="native_delete_failed";
+            for(size_t i=0;i<removed_count&&!error;i++){
+                char command[64];snprintf(command,sizeof(command),"REMOVE %.19s",removed[i]);
+                if(!provider_request(command))error="provider_remove_failed";
+            }
+            if(!error){
+                if(!fvb_registry_save_file(config.registry_file,&candidate,storage_error,sizeof(storage_error)))error="registry_save_failed";
+                else {
+                    fvb_device_registry old_registry=registry;
+                    flash_saved=persist_flash();flash_dirty=!flash_saved;registry=candidate;accepted=1;
+                    for(size_t i=0;i<registry.count;i++){
+                        const fvb_device *old=fvb_registry_find(&old_registry,registry.devices[i].uid);
+                        if(old){
+                            size_t old_index=(size_t)(old-old_registry.devices);
+                            if(old_index!=i)memmove(feedback_cache[i],feedback_cache[old_index],sizeof(feedback_cache[i]));
+                        }else memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
+                    }
+                    for(size_t i=registry.count;i<FVB_REGISTRY_CAPACITY;i++)memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
+                    if(!reconcile_provider_locked())error="provider_pending";
+                    if(!flash_saved)error="flash_persist_failed";
+                }
             }
         }else {
             accepted=1;

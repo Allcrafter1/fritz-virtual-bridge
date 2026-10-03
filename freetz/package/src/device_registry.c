@@ -136,3 +136,20 @@ fvb_registry_result fvb_registry_set_enabled(fvb_device_registry *r, uint64_t re
     d = &r->devices[found - r->devices]; d->enabled = (uint8_t)enabled;
     d->revision = ++r->revision; return FVB_REGISTRY_OK;
 }
+fvb_registry_result fvb_registry_remove(fvb_device_registry *r, uint64_t rev,
+    const char *uid) {
+    const fvb_device *found; size_t index;
+    fvb_registry_result result = check(r, rev);
+    if (result != FVB_REGISTRY_OK) return result;
+    if (!fvb_registry_valid_uid(uid)) return FVB_REGISTRY_INVALID;
+    found = fvb_registry_find(r, uid); if (!found) return FVB_REGISTRY_NOT_FOUND;
+    if (r->revision == UINT64_MAX) return FVB_REGISTRY_EXHAUSTED;
+    index = (size_t)(found - r->devices);
+    if (index + 1 < r->count)
+        memmove(&r->devices[index], &r->devices[index + 1],
+                (r->count - index - 1) * sizeof(r->devices[0]));
+    --r->count;
+    memset(&r->devices[r->count], 0, sizeof(r->devices[0]));
+    ++r->revision;
+    return FVB_REGISTRY_OK;
+}

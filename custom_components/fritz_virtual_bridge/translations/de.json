@@ -1,10 +1,12 @@
 {
   "title": "FRITZ! Virtual Bridge",
   "common": {
+    "bridge_entry_title": "{bridge_id} – über + neues Gerät hinzufügen",
+    "bridge_device_name": "FRITZ!OS-Oberfläche öffnen",
     "bridge_ready_title": "FRITZ! Virtual Bridge ist bereit",
-    "bridge_ready_message": "Öffne **Einstellungen → Geräte & Dienste → FRITZ! Virtual Bridge** und füge über das **+** oben rechts ein virtuelles FRITZ!-Gerät hinzu. Öffne danach [FRITZ!OS]({fritz_url}), um es einem FRITZ!Smart Control 440 zuzuweisen.",
+    "bridge_ready_message": "Öffne **Einstellungen → Geräte & Dienste → FRITZ! Virtual Bridge** und füge über das **+** oben rechts ein virtuelles FRITZ!-Gerät hinzu. Öffne danach [FRITZ!OS]({fritz_url}), um es zuzuordnen oder zu konfigurieren.",
     "device_created_title": "Virtuelles FRITZ!-Gerät erstellt",
-    "device_created_message": "**{fritz_name}** wurde erstellt. Öffne jetzt [FRITZ!OS]({fritz_url}), um das Gerät einem FRITZ!Smart Control 440 zuzuweisen. Weitere virtuelle Geräte legst du über das **+** oben rechts im Bridge-Eintrag an."
+    "device_created_message": "**{fritz_name}** wurde erstellt. Öffne jetzt [FRITZ!OS]({fritz_url}), um das virtuelle Gerät zuzuordnen oder zu konfigurieren. Weitere virtuelle Geräte legst du über das **+** oben rechts im Bridge-Eintrag an."
   },
   "config": {
     "step": {
@@ -19,7 +21,7 @@
       },
       "reconfigure": {
         "title": "Bridge konfigurieren",
-        "description": "Die FRITZ!Box-Adresse öffnet die Smart-Home-Oberfläche, in der virtuelle Geräte dem 440 zugewiesen werden.",
+        "description": "Die FRITZ!Box-Adresse öffnet die Smart-Home-Oberfläche, in der virtuelle Geräte zugeordnet und konfiguriert werden.",
         "data": {
           "topic_root": "MQTT-Topic-Präfix",
           "fritz_url": "FRITZ!Box-Konfigurationsadresse"
@@ -46,14 +48,14 @@
       "step": {
         "user": {
           "title": "Virtuelles Gerät hinzufügen",
-          "description": "Wähle die Home-Assistant-Entität, die das 440 steuern soll.",
+          "description": "Wähle die Home-Assistant-Entität, die als virtuelles FRITZ!-Gerät dargestellt werden soll.",
           "data": {
             "source_entity_id": "Home-Assistant-Entität"
           }
         },
         "details": {
           "title": "Virtuelles Gerät bestätigen",
-          "description": "Das engste passende Profil wird automatisch gewählt. Nach dem Speichern führt eine Benachrichtigung direkt zu FRITZ!OS, um das Gerät dem 440 zuzuweisen.",
+          "description": "Das am besten passende Profil wird automatisch ausgewählt. Falls ein anderes Profil gewünscht ist, kann es hier manuell ausgewählt werden. Im nächsten Schritt kann das virtuelle Gerät über die FRITZ!OS-Oberfläche entsprechend zugeordnet bzw. konfiguriert werden.",
           "data": {
             "profile": "FRITZ-Geräteprofil",
             "fritz_name": "Name in FRITZ!OS"
@@ -61,12 +63,15 @@
         },
         "reconfigure": {
           "title": "Virtuelles Gerät neu binden",
-          "description": "Eine andere Entität oder ein neuer Name behält die FRITZ-Identität und alle 440-Zuweisungen.",
+          "description": "Eine andere Entität oder ein neuer Name behält die FRITZ-Identität und alle vorhandenen Zuweisungen.",
           "data": {
             "source_entity_id": "Home-Assistant-Entität",
             "fritz_name": "Name in FRITZ!OS"
           }
         }
+      },
+      "create_entry": {
+        "fritz_configuration": "**{fritz_name}** wurde erfolgreich erstellt. Öffne jetzt direkt die [FRITZ!OS-Oberfläche]({fritz_url}), um das virtuelle Gerät zuzuordnen oder zu konfigurieren."
       },
       "error": {
         "already_mapped": "Diese Home-Assistant-Entität besitzt auf dieser Bridge bereits ein virtuelles FRITZ-Gerät.",

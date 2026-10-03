@@ -9,10 +9,12 @@ $(PKG)_STARTLEVEL:=90
 
 $(PKG)_PROVIDER:=$($(PKG)_DIR)/virtual_provider.so
 $(PKG)_CONTROL:=$($(PKG)_DIR)/provider_ctl
+$(PKG)_AHA_CONTROL:=$($(PKG)_DIR)/fritzvirtual-aha-control
 $(PKG)_BRIDGE:=$($(PKG)_DIR)/fritzvirtual-mqtt-bridge
 
 $(PKG)_TARGET_PROVIDER:=$($(PKG)_DEST_DIR)/usr/lib/fritzvirtual/virtual_provider.so
 $(PKG)_TARGET_CONTROL:=$($(PKG)_DEST_DIR)/usr/bin/fritzvirtual-ctl
+$(PKG)_TARGET_AHA_CONTROL:=$($(PKG)_DEST_DIR)/usr/bin/fritzvirtual-aha-control
 $(PKG)_TARGET_BRIDGE:=$($(PKG)_DEST_DIR)/usr/sbin/fritzvirtual-mqtt-bridge
 
 $(PKG_SOURCE_DOWNLOAD)
@@ -28,6 +30,10 @@ $($(PKG)_CONTROL): $($(PKG)_DIR)/.configured
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
 		-o $@ $(FRITZVIRTUAL_DIR)/provider_ctl.c $(TARGET_LDFLAGS)
 
+$($(PKG)_AHA_CONTROL): $($(PKG)_DIR)/.configured
+	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
+		-o $@ $(FRITZVIRTUAL_DIR)/aha_control.c -ldl $(TARGET_LDFLAGS)
+
 $($(PKG)_BRIDGE): $($(PKG)_DIR)/.configured \
 		$(MOSQUITTO_LIB_BINARY) $(LIBCJSON_STAGING_BINARY)
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
@@ -42,17 +48,20 @@ $($(PKG)_TARGET_PROVIDER): $($(PKG)_PROVIDER)
 $($(PKG)_TARGET_CONTROL): $($(PKG)_CONTROL)
 	$(INSTALL_BINARY_STRIP)
 
+$($(PKG)_TARGET_AHA_CONTROL): $($(PKG)_AHA_CONTROL)
+	$(INSTALL_BINARY_STRIP)
+
 $($(PKG)_TARGET_BRIDGE): $($(PKG)_BRIDGE)
 	$(INSTALL_BINARY_STRIP)
 
 $(pkg):
 
-$(pkg)-precompiled: $($(PKG)_TARGET_PROVIDER) $($(PKG)_TARGET_CONTROL) $($(PKG)_TARGET_BRIDGE)
+$(pkg)-precompiled: $($(PKG)_TARGET_PROVIDER) $($(PKG)_TARGET_CONTROL) $($(PKG)_TARGET_AHA_CONTROL) $($(PKG)_TARGET_BRIDGE)
 
 $(pkg)-clean:
-	$(RM) $($(PKG)_PROVIDER) $($(PKG)_CONTROL) $($(PKG)_BRIDGE)
+	$(RM) $($(PKG)_PROVIDER) $($(PKG)_CONTROL) $($(PKG)_AHA_CONTROL) $($(PKG)_BRIDGE)
 
 $(pkg)-uninstall:
-	$(RM) $($(PKG)_TARGET_PROVIDER) $($(PKG)_TARGET_CONTROL) $($(PKG)_TARGET_BRIDGE)
+	$(RM) $($(PKG)_TARGET_PROVIDER) $($(PKG)_TARGET_CONTROL) $($(PKG)_TARGET_AHA_CONTROL) $($(PKG)_TARGET_BRIDGE)
 
 $(PKG_FINISH)
