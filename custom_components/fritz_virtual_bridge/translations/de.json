@@ -1,0 +1,87 @@
+{
+  "title": "FRITZ! Virtual Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "MQTT-Bridge verbinden",
+        "description": "Verwende dieselbe Bridge-ID wie im Freetz-Paket.",
+        "data": {
+          "bridge_id": "Bridge-ID",
+          "topic_root": "MQTT-Topic-Präfix",
+          "fritz_url": "FRITZ!Box-Konfigurationsadresse"
+        }
+      },
+      "reconfigure": {
+        "title": "Bridge konfigurieren",
+        "description": "Die FRITZ!Box-Adresse öffnet die Smart-Home-Oberfläche, in der virtuelle Geräte dem 440 zugewiesen werden.",
+        "data": {
+          "topic_root": "MQTT-Topic-Präfix",
+          "fritz_url": "FRITZ!Box-Konfigurationsadresse"
+        }
+      },
+      "mqtt_confirm": {
+        "title": "Gefundene Bridge hinzufügen",
+        "description": "Die gefundene FRITZ! Virtual Bridge {bridge_id} verbinden."
+      }
+    },
+    "error": {
+      "invalid_bridge_id": "Verwende 3–32 Kleinbuchstaben, Zahlen, Unterstriche oder Bindestriche.",
+      "invalid_fritz_url": "Gib eine HTTP- oder HTTPS-Adresse ohne Zugangsdaten, Abfrageparameter oder Fragment an."
+    },
+    "abort": {
+      "already_configured": "Diese Bridge ist bereits eingerichtet.",
+      "invalid_discovery": "Die MQTT-Ankündigung der Bridge ist ungültig oder wird nicht unterstützt.",
+      "reconfigure_successful": "Die Bridge-Konfiguration wurde aktualisiert."
+    }
+  },
+  "config_subentries": {
+    "device": {
+      "title": "Virtuelles FRITZ!-Gerät hinzufügen",
+      "step": {
+        "user": {
+          "title": "Virtuelles Gerät hinzufügen",
+          "description": "Wähle die Home-Assistant-Entität, die das 440 steuern soll.",
+          "data": {
+            "source_entity_id": "Home-Assistant-Entität"
+          }
+        },
+        "details": {
+          "title": "Virtuelles Gerät bestätigen",
+          "description": "Das engste passende Profil wird automatisch gewählt. Die Position auf dem 440 wird weiterhin in FRITZ!OS zugewiesen.",
+          "data": {
+            "profile": "FRITZ-Geräteprofil",
+            "fritz_name": "Name in FRITZ!OS"
+          }
+        },
+        "reconfigure": {
+          "title": "Virtuelles Gerät neu binden",
+          "description": "Eine andere Entität oder ein neuer Name behält die FRITZ-Identität und alle 440-Zuweisungen.",
+          "data": {
+            "source_entity_id": "Home-Assistant-Entität",
+            "fritz_name": "Name in FRITZ!OS"
+          }
+        }
+      },
+      "error": {
+        "already_mapped": "Diese Home-Assistant-Entität besitzt auf dieser Bridge bereits ein virtuelles FRITZ-Gerät.",
+        "incompatible_profile": "Die Entität unterstützt dieses dauerhafte FRITZ-Profil nicht.",
+        "invalid_name": "Der Name darf keine Leerzeichen am Anfang oder Ende und höchstens 79 UTF-8-Bytes enthalten.",
+        "source_entity_missing": "Die ausgewählte Home-Assistant-Entität existiert nicht."
+      },
+      "abort": {
+        "source_entity_missing": "Die ausgewählte Home-Assistant-Entität existiert nicht mehr."
+      }
+    }
+  },
+  "selector": {
+    "profile": {
+      "options": {
+        "switch": "Schalter/Steckdose",
+        "dimmable_light": "Dimmbares Licht",
+        "color_temperature_light": "Farbtemperatur-Licht",
+        "cover": "Rollladen",
+        "thermostat": "Heizkörperthermostat"
+      }
+    }
+  }
+}

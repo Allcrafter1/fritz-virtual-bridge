@@ -1,0 +1,22 @@
+FRITZ! Virtual Bridge
+
+This project is independent community software. It is not affiliated with,
+endorsed by, or supported by AVM Computersysteme Vertriebs GmbH.
+
+FRITZ!, FRITZ!Box and FRITZ!Smart are trademarks of their respective owner.
+They are used only to identify compatible products and interfaces.
+
+This repository does not contain or distribute AVM firmware, modified AVM
+firmware images, or AVM proprietary executables. A user who chooses to build a
+modified firmware image must obtain the original firmware and perform the
+build locally under the applicable terms.
+
+Freetz-NG is a separate GPL-2.0 project:
+https://github.com/Freetz-NG/freetz-ng
+
+The MQTT bridge dynamically links against Eclipse Mosquitto's client library.
+Mosquitto is available under EPL-2.0 OR EDL-1.0/BSD-3-Clause terms:
+https://github.com/eclipse-mosquitto/mosquitto
+
+Home Assistant is a separate project distributed under Apache-2.0:
+https://github.com/home-assistant/core

@@ -1,0 +1,87 @@
+{
+  "title": "FRITZ! Virtual Bridge",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect an MQTT bridge",
+        "description": "Use the same bridge ID configured in the Freetz package.",
+        "data": {
+          "bridge_id": "Bridge ID",
+          "topic_root": "MQTT topic root",
+          "fritz_url": "FRITZ!Box configuration URL"
+        }
+      },
+      "reconfigure": {
+        "title": "Configure bridge",
+        "description": "The FRITZ!Box URL opens the Smart Home interface used to assign virtual devices to the 440.",
+        "data": {
+          "topic_root": "MQTT topic root",
+          "fritz_url": "FRITZ!Box configuration URL"
+        }
+      },
+      "mqtt_confirm": {
+        "title": "Add discovered bridge",
+        "description": "Connect the discovered FRITZ! Virtual Bridge {bridge_id}."
+      }
+    },
+    "error": {
+      "invalid_bridge_id": "Use 3–32 lowercase letters, numbers, underscores or hyphens.",
+      "invalid_fritz_url": "Enter an HTTP or HTTPS URL without credentials, query parameters or fragments."
+    },
+    "abort": {
+      "already_configured": "This bridge is already configured.",
+      "invalid_discovery": "The MQTT bridge announcement is invalid or unsupported.",
+      "reconfigure_successful": "The bridge configuration was updated."
+    }
+  },
+  "config_subentries": {
+    "device": {
+      "title": "Add virtual FRITZ! device",
+      "step": {
+        "user": {
+          "title": "Add virtual device",
+          "description": "Choose the Home Assistant entity that the 440 should control.",
+          "data": {
+            "source_entity_id": "Home Assistant entity"
+          }
+        },
+        "details": {
+          "title": "Confirm virtual device",
+          "description": "The closest profile is selected automatically. FRITZ!OS remains responsible for assigning the device to a 440 screen position.",
+          "data": {
+            "profile": "FRITZ device profile",
+            "fritz_name": "Name in FRITZ!OS"
+          }
+        },
+        "reconfigure": {
+          "title": "Rebind virtual device",
+          "description": "Changing the source entity or name keeps the FRITZ identity and existing 440 assignments.",
+          "data": {
+            "source_entity_id": "Home Assistant entity",
+            "fritz_name": "Name in FRITZ!OS"
+          }
+        }
+      },
+      "error": {
+        "already_mapped": "This Home Assistant entity already has a virtual FRITZ device on this bridge.",
+        "incompatible_profile": "The entity does not support this persistent FRITZ profile.",
+        "invalid_name": "Enter a name without leading or trailing spaces and containing at most 79 UTF-8 bytes.",
+        "source_entity_missing": "The selected Home Assistant entity does not exist."
+      },
+      "abort": {
+        "source_entity_missing": "The selected Home Assistant entity no longer exists."
+      }
+    }
+  },
+  "selector": {
+    "profile": {
+      "options": {
+        "switch": "Switch/socket",
+        "dimmable_light": "Dimmable light",
+        "color_temperature_light": "Color-temperature light",
+        "cover": "Blind/cover",
+        "thermostat": "Radiator thermostat"
+      }
+    }
+  }
+}

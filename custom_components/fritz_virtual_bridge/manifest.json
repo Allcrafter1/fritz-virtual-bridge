@@ -1,0 +1,14 @@
+{
+  "domain": "fritz_virtual_bridge",
+  "name": "FRITZ! Virtual Bridge",
+  "codeowners": ["@Allcrafter1"],
+  "config_flow": true,
+  "dependencies": ["mqtt"],
+  "documentation": "https://github.com/Allcrafter1/fritz-virtual-bridge",
+  "integration_type": "hub",
+  "iot_class": "local_push",
+  "issue_tracker": "https://github.com/Allcrafter1/fritz-virtual-bridge/issues",
+  "mqtt": ["fritzvirtual/+/bridge/info"],
+  "requirements": [],
+  "version": "0.1.0-dev0"
+}
