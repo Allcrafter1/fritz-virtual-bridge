@@ -1,5 +1,11 @@
 {
   "title": "FRITZ! Virtual Bridge",
+  "common": {
+    "bridge_ready_title": "FRITZ! Virtual Bridge ist bereit",
+    "bridge_ready_message": "Öffne **Einstellungen → Geräte & Dienste → FRITZ! Virtual Bridge** und füge über das **+** oben rechts ein virtuelles FRITZ!-Gerät hinzu. Öffne danach [FRITZ!OS]({fritz_url}), um es einem FRITZ!Smart Control 440 zuzuweisen.",
+    "device_created_title": "Virtuelles FRITZ!-Gerät erstellt",
+    "device_created_message": "**{fritz_name}** wurde erstellt. Öffne jetzt [FRITZ!OS]({fritz_url}), um das Gerät einem FRITZ!Smart Control 440 zuzuweisen. Weitere virtuelle Geräte legst du über das **+** oben rechts im Bridge-Eintrag an."
+  },
   "config": {
     "step": {
       "user": {
@@ -47,7 +53,7 @@
         },
         "details": {
           "title": "Virtuelles Gerät bestätigen",
-          "description": "Das engste passende Profil wird automatisch gewählt. Die Position auf dem 440 wird weiterhin in FRITZ!OS zugewiesen.",
+          "description": "Das engste passende Profil wird automatisch gewählt. Nach dem Speichern führt eine Benachrichtigung direkt zu FRITZ!OS, um das Gerät dem 440 zuzuweisen.",
           "data": {
             "profile": "FRITZ-Geräteprofil",
             "fritz_name": "Name in FRITZ!OS"

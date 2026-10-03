@@ -7,6 +7,7 @@ import secrets
 from typing import Any, override
 
 import probatio
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -24,6 +25,7 @@ from homeassistant.helpers.selector import (
     TextSelectorConfig,
 )
 from homeassistant.helpers.service_info.mqtt import MqttServiceInfo
+from homeassistant.helpers.translation import async_get_translations
 
 from .const import (
     CONF_BRIDGE_ID,
@@ -50,6 +52,7 @@ from .models import (
 )
 
 SUBENTRY_TYPE_DEVICE = "device"
+_NOTIFICATION_ID_SUFFIX = "workflow"
 
 
 class FritzVirtualBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -75,7 +78,7 @@ class FritzVirtualBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
             if not errors:
                 await self.async_set_unique_id(bridge_id)
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
+                result = self.async_create_entry(
                     title=bridge_id,
                     data={
                         CONF_BRIDGE_ID: bridge_id,
@@ -83,6 +86,12 @@ class FritzVirtualBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                         CONF_FRITZ_URL: fritz_url,
                     },
                 )
+                await _async_notify_bridge_ready(
+                    self.hass,
+                    bridge_id=bridge_id,
+                    fritz_url=fritz_url,
+                )
+                return result
 
         schema = probatio.Schema(
             {
@@ -112,7 +121,7 @@ class FritzVirtualBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="invalid_discovery")
         await self.async_set_unique_id(bridge_id)
         self._abort_if_unique_id_configured()
-        return self.async_create_entry(
+        result = self.async_create_entry(
             title=bridge_id,
             data={
                 CONF_BRIDGE_ID: bridge_id,
@@ -120,6 +129,12 @@ class FritzVirtualBridgeConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_FRITZ_URL: DEFAULT_FRITZ_URL,
             },
         )
+        await _async_notify_bridge_ready(
+            self.hass,
+            bridge_id=bridge_id,
+            fritz_url=DEFAULT_FRITZ_URL,
+        )
+        return result
 
     @override
     async def async_step_reconfigure(
@@ -242,11 +257,20 @@ class VirtualDeviceSubentryFlow(ConfigSubentryFlow):
                         self.hass, self._source_entity_id, user_input[CONF_PROFILE]
                     )
                 )
-                return self.async_create_entry(
-                    title=user_input[CONF_FRITZ_NAME].strip(),
+                fritz_name = user_input[CONF_FRITZ_NAME].strip()
+                result = self.async_create_entry(
+                    title=fritz_name,
                     data=data,
                     unique_id=endpoint_uid,
                 )
+                entry = self._get_entry()
+                await _async_notify_device_created(
+                    self.hass,
+                    bridge_id=entry.data[CONF_BRIDGE_ID],
+                    fritz_name=fritz_name,
+                    fritz_url=entry.data.get(CONF_FRITZ_URL, DEFAULT_FRITZ_URL),
+                )
+                return result
 
         friendly_name = source_state.attributes.get("friendly_name")
         default_name = (
@@ -359,6 +383,54 @@ def _profiles_for_entity(domain: str, default_profile: DeviceProfile) -> list[st
     if domain == "climate":
         return [DeviceProfile.THERMOSTAT.value]
     return []
+
+
+async def _async_common_translations(hass: HomeAssistant) -> dict[str, str]:
+    """Load this integration's runtime notification strings."""
+    return await async_get_translations(
+        hass,
+        hass.config.language,
+        "common",
+        {DOMAIN},
+    )
+
+
+def _translation(translations: dict[str, str], key: str) -> str:
+    """Return one required translated runtime string."""
+    return translations[f"component.{DOMAIN}.common.{key}"]
+
+
+async def _async_notify_bridge_ready(
+    hass: HomeAssistant, *, bridge_id: str, fritz_url: str
+) -> None:
+    """Explain the otherwise icon-only config-subentry action."""
+    translations = await _async_common_translations(hass)
+    persistent_notification.async_create(
+        hass,
+        _translation(translations, "bridge_ready_message").format(fritz_url=fritz_url),
+        _translation(translations, "bridge_ready_title"),
+        f"{DOMAIN}_{bridge_id}_{_NOTIFICATION_ID_SUFFIX}",
+    )
+
+
+async def _async_notify_device_created(
+    hass: HomeAssistant,
+    *,
+    bridge_id: str,
+    fritz_name: str,
+    fritz_url: str,
+) -> None:
+    """Show the next FRITZ!OS assignment step after the device wizard."""
+    translations = await _async_common_translations(hass)
+    persistent_notification.async_create(
+        hass,
+        _translation(translations, "device_created_message").format(
+            fritz_name=fritz_name,
+            fritz_url=fritz_url,
+        ),
+        _translation(translations, "device_created_title"),
+        f"{DOMAIN}_{bridge_id}_{_NOTIFICATION_ID_SUFFIX}",
+    )
 
 
 def _valid_name(name: object) -> bool:

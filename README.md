@@ -21,13 +21,14 @@ Home-Assistant-owned thermostat schedule shadow with the native 440
 
 ## Installation model
 
-1. Build a Freetz-NG image locally from an original AVM firmware image and the
-   package supplied by this repository.
-2. Configure the bridge's MQTT connection in the Freetz web interface.
-3. Install the Home Assistant custom integration.
+1. Connect a compatible dedicated 7530 directly to a Linux computer and run
+   the guided local build/installation script.
+2. Configure IP-client/Mesh operation in FRITZ!OS and the MQTT connection in
+   the Freetz web interface. Normal use requires no SSH or file editing.
+3. Install the Home Assistant custom integration through HACS.
 4. Add the bridge once, then add one mapping per Home Assistant entity.
-5. Assign the generated virtual devices to one or more 440 controllers in
-   FRITZ!OS.
+5. Follow the completion notification into FRITZ!OS and assign the generated
+   virtual devices to one or more 440 controllers.
 
 No AVM firmware, AVM program or modified firmware image is distributed by
 this repository. Users build and install their own image. See
@@ -40,9 +41,10 @@ The guided local build, HACS setup and rollback procedure is documented in
 
 The source is currently pre-release software. The dynamic provider, persistent
 registry, MQTT discovery and Home Assistant mapping flow have completed an
-end-to-end laboratory migration test. A clean source build and direct-pairing
-latency qualification remain before the first release. The compatibility guard
-refuses to inject the provider into an unknown `aha` binary.
+end-to-end laboratory migration test, including a clean source build. A
+direct-pairing latency qualification remains before the first release. The
+compatibility guard refuses to inject the provider into an unknown `aha`
+binary.
 
 The agreed product architecture and user workflow are documented in
 [Architecture](docs/architecture.md). Laboratory protocol evidence remains in

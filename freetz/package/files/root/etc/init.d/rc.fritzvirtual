@@ -53,6 +53,17 @@ start() {
 		echo "MQTT broker host is missing" >&2
 		return 1
 	}
+	case "$FRITZVIRTUAL_MQTT_PORT" in
+		""|*[!0-9]*)
+			echo "MQTT port must be a number between 1 and 65535" >&2
+			return 1
+			;;
+	esac
+	[ "$FRITZVIRTUAL_MQTT_PORT" -ge 1 ] &&
+		[ "$FRITZVIRTUAL_MQTT_PORT" -le 65535 ] || {
+		echo "MQTT port must be a number between 1 and 65535" >&2
+		return 1
+	}
 	case "$FRITZVIRTUAL_BRIDGE_ID" in
 		""|?|??|*[!a-z0-9_-]*)
 			echo "Bridge ID must contain 3-32 lowercase letters, digits, underscore or hyphen" >&2
