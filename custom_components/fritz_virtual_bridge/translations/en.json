@@ -45,6 +45,11 @@
   "config_subentries": {
     "device": {
       "title": "Add virtual FRITZ! device",
+      "entry_type": "Virtual FRITZ! device",
+      "initiate_flow": {
+        "user": "Add virtual FRITZ! device",
+        "reconfigure": "Reconfigure virtual FRITZ! device"
+      },
       "step": {
         "user": {
           "title": "Add virtual device",

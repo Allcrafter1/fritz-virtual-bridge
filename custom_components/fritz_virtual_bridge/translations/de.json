@@ -45,6 +45,11 @@
   "config_subentries": {
     "device": {
       "title": "Virtuelles FRITZ!-Gerät hinzufügen",
+      "entry_type": "Virtuelles FRITZ!-Gerät",
+      "initiate_flow": {
+        "user": "Virtuelles FRITZ!-Gerät hinzufügen",
+        "reconfigure": "Virtuelles FRITZ!-Gerät neu binden"
+      },
       "step": {
         "user": {
           "title": "Virtuelles Gerät hinzufügen",
