@@ -143,7 +143,9 @@ schedule shadow when the climate entity has sibling entities named
 timed controls without schedule mirroring.
 
 The bridge uses the central MQTT broker; it does not run another broker on the
-FRITZ!Box. Home Assistant uses the credentials already stored by its MQTT
+FRITZ!Box. The small `mosquitto_pub` diagnostic client is included because
+Freetz-NG otherwise forces its broker package when selecting `libmosquitto`.
+Home Assistant uses the credentials already stored by its MQTT
 integration. The FRITZ!Box is a separate MQTT client: enter its broker account
 under **Freetz → Packages → FRITZ! Virtual Bridge**. Freetz writes those values
 to the root-only runtime file `/var/run/fritzvirtual/mqtt.conf` (mode `0600`).
