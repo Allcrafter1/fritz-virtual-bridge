@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.5 - 2026-10-04
+
+- Split the native provider into state, profile encoding, event and transport
+  modules while preserving all 70 recorded v0.1.4 protocol packets byte for
+  byte, apart from clock-derived fields.
+- Harden provider startup and shutdown, socket and process ownership, short or
+  interrupted I/O, MQTT setup, strict replies and registry file loading.
+- Fix cleanup after cJSON allocation failures and protect finite-number checks
+  from Freetz's `-Ofast` defaults. Add stack protection, immediate symbol
+  resolution, RELRO and a non-executable stack to all native targets.
+- Add fault-injection, sanitizer, component, lifecycle and cross-build tests,
+  including all supported device profiles and failure paths.
+- Report the actual package version in bridge diagnostics.
+
+This release requires updating the FRITZ!Box package. The Home Assistant
+integration version is bumped in step with it, although its protocol remains
+compatible with 0.1.4.
+
 ## 0.1.4 - 2026-10-04
 
 - Handle multiple native protocol messages in one stream write. Previously,

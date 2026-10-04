@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT OR Apache-2.0
-$(call PKG_INIT_BIN, 0.1.4)
+$(call PKG_INIT_BIN, 0.1.5)
 $(PKG)_SOURCE:=$(pkg)-$($(PKG)_VERSION).tar.gz
 $(PKG)_HASH:=@SOURCE_HASH@
 $(PKG)_SITE:=https://invalid.example.invalid/source-only-package
@@ -44,6 +44,7 @@ $($(PKG)_AHA_CONTROL): $($(PKG)_DIR)/.configured
 $($(PKG)_BRIDGE): $($(PKG)_DIR)/.configured \
 		$(MOSQUITTO_LIB_BINARY) $(LIBCJSON_STAGING_BINARY)
 	$(TARGET_CC) $(TARGET_CFLAGS) $(FRITZVIRTUAL_CFLAGS) -std=gnu11 -Wall -Wextra \
+		-DFVB_VERSION=\"$(FRITZVIRTUAL_VERSION)\" \
 		-I$(MOSQUITTO_DIR)/include -o $@ $(FRITZVIRTUAL_DIR)/mqtt_bridge.c \
 		$(FRITZVIRTUAL_DIR)/device_registry.c $(FRITZVIRTUAL_DIR)/registry_store.c \
 		-L$(MOSQUITTO_DIR)/lib -lmosquitto -lcjson -lpthread $(TARGET_LDFLAGS) \

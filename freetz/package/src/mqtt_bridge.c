@@ -6,6 +6,9 @@
 #include "device_registry.h"
 #include "registry_store.h"
 #include "control_parse.h"
+#ifndef FVB_VERSION
+#define FVB_VERSION "development"
+#endif
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/time.h>
@@ -247,7 +250,7 @@ static void publish_registry_locked(void){
     root=cJSON_CreateObject();if(!root)return;
     if(!cJSON_AddNumberToObject(root,"schema_version",1)||
        !cJSON_AddStringToObject(root,"bridge_id",config.bridge_id)||
-       !cJSON_AddStringToObject(root,"bridge_version","1.0")||
+       !cJSON_AddStringToObject(root,"bridge_version",FVB_VERSION)||
        !cJSON_AddBoolToObject(root,"ready",provider_ready)||
        !cJSON_AddNumberToObject(root,"revision",(double)registry.revision)){cJSON_Delete(root);return;}
     cJSON *profiles=cJSON_AddArrayToObject(root,"profiles");
