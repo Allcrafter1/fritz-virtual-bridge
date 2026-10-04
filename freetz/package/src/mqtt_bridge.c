@@ -5,6 +5,7 @@
 #include <cjson/cJSON.h>
 #include "device_registry.h"
 #include "registry_store.h"
+#include "control_parse.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/time.h>
@@ -473,8 +474,8 @@ static void device_message_locked(struct mosquitto *client,void *userdata,const 
         if(strcmp(value,"cancel")){
             char *space=strchr(value,' ');if(!space)return;*space++=0;
             if(strcmp(value,"boost")&&strcmp(value,"cold"))return;
-            char *end=0;unsigned long timestamp=strtoul(space,&end,10);
-            if(end==space||*end||!timestamp||timestamp>UINT32_MAX||*space=='-')return;
+            uint32_t timestamp;
+            if(!fvb_parse_timestamp(space,&timestamp))return;
             *--space=' ';
         }
         char request[80];snprintf(request,sizeof(request),"TIMER %s %s\n",endpoint_id,value);
@@ -486,10 +487,8 @@ static void device_message_locked(struct mosquitto *client,void *userdata,const 
         char value[64],request[128];
         memcpy(value,message->payload,(size_t)message->payloadlen);value[message->payloadlen]=0;
         if(strcmp(value,"disabled")){
-            unsigned current,next,current_minute,next_minute;char tail;
-            if(sscanf(value,"active %u %u %u %u%c",&current,&next,&current_minute,&next_minute,&tail)!=4 ||
-               current<16||current>56||next<16||next>56||
-               current_minute>=10080||next_minute>=10080||current_minute==next_minute){
+            unsigned fields[4];
+            if(strncmp(value,"active ",7)||!fvb_parse_schedule(value+7,fields)){
                 fprintf(stderr,"mqtt_bridge: ignored invalid thermostat schedule\n");return;
             }
         }

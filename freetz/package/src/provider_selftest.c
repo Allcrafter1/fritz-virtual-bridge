@@ -29,24 +29,71 @@ static int expect_control(const char *path,const char *command,int expected){
  if(fd>=0)close(fd);
  return n>0&&strstr(response,expected?"\"ok\":true":"\"ok\":false");
 }
+/* Full-frame fixtures were captured from v0.1.4 (99bd3f2), independently of
+ * the refactored encoders. Mask only clock-derived fields, never wire layout,
+ * identity, capabilities, values or padding. Set FVB_PROVIDER_GOLDEN to opt in. */
+static FILE *golden_file;
+static unsigned golden_frame;
+static int verify_golden(const unsigned char *packet, unsigned length) {
+ const char *path=getenv("FVB_PROVIDER_GOLDEN");
+ if(!path)return 1;
+ if(!golden_file){golden_file=fopen(path,"r");if(!golden_file)return 0;}
+ unsigned char normalized[256];
+ char expected[514],actual[513];
+ memcpy(normalized,packet,length);
+ if(packet[0]==7){
+  unsigned function=u32(packet+16);
+  if(function==95&&length==48)memset(normalized+44,0,4);
+  if(function==98&&length==216)memset(normalized+160,0,4);
+  if((function==57||function==117)&&length==40)memset(normalized+32,0,4);
+ }
+ for(unsigned i=0;i<length;i++)snprintf(actual+i*2,3,"%02x",normalized[i]);
+ ++golden_frame;
+ if(!fgets(expected,sizeof(expected),golden_file))return 0;
+ expected[strcspn(expected,"\r\n")]=0;
+ if(strcmp(expected,actual)){
+  fprintf(stderr,"golden packet %u differs\n",golden_frame);
+  return 0;
+ }
+ return 1;
+}
 static int frame(int fd,unsigned char *p,unsigned remote,unsigned function){
  if(recv(fd,p,4,MSG_WAITALL)!=4)return 0;
  unsigned n=u16(p+2);if(n<16||n>256)return 0;
  if(recv(fd,p+4,n-4,MSG_WAITALL)!=(ssize_t)n-4)return 0;
- return u16(p+8)==remote&&(function? p[0]==7&&u32(p+16)==function:p[0]==4);
+ return verify_golden(p,n)&&u16(p+8)==remote&&(function? p[0]==7&&u32(p+16)==function:p[0]==4);
 }
 #define CHECK(x) do{if(!(x)){fprintf(stderr,"dynamic test line %d: %s\n",__LINE__,#x);return 120;}}while(0)
 static int dynamic_test(void){
  int s[2];unsigned char p[256]={1,3,0,24,0,0,0,3,0,0,0,3,0,2,32,56};
  const char *path=getenv("AHA_VIRTUAL_CONTROL_PATH");if(!path)path="/var/tmp/aha-virtual-provider.ctl";
  prctl(PR_SET_NAME,"sR/TX-test",0,0,0);
- CHECK(!socketpair(AF_UNIX,SOCK_STREAM,0,s));
+ /* Discovery slots must survive more than a lifetime total of 32 pairs.
+  * Closing one end retires the pair even if the other fd is still open. */
+ for (unsigned i=0;i<40;i++) {
+  int retired[2];
+  CHECK(!socketpair(AF_UNIX,SOCK_STREAM,0,retired));
+  CHECK(!close(retired[0]));
+  CHECK(!close(retired[1]));
+ }
+ CHECK(!socketpair(AF_UNIX,SOCK_STREAM|SOCK_CLOEXEC,0,s));
  struct timeval timeout={2,0};setsockopt(s[0],SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
  setsockopt(s[1],SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
  CHECK(write(s[0],p,24)==24&&recv(s[1],p,24,MSG_WAITALL)==24);
  for(int i=0;i<100&&access(path,F_OK);i++)usleep(10000);
  int ready=0;for(int i=0;i<100&&!ready;i++){ready=expect_control(path,"GET",1);if(!ready)usleep(10000);}
  CHECK(ready);
+ /* Closed WATCH clients must not fill all four slots when no events occur. */
+ for(unsigned i=0;i<8;i++)CHECK(expect_control(path,"WATCH",1));
+ /* A client may cancel after sending a request but before reading its reply.
+  * The provider must not deliver SIGPIPE to its host AHA process. */
+ int cancelled=socket(AF_UNIX,SOCK_SEQPACKET,0);
+ struct sockaddr_un cancelled_address={.sun_family=AF_UNIX};
+ strcpy(cancelled_address.sun_path,path);
+ CHECK(cancelled>=0&&!connect(cancelled,(struct sockaddr*)&cancelled_address,sizeof(cancelled_address)));
+ CHECK(send(cancelled,"GET",3,0)==3);
+ CHECK(!close(cancelled));
+ CHECK(expect_control(path,"GET",1));
  struct pollfd wait={s[1],POLLIN,0};CHECK(poll(&wait,1,50)==0);
  CHECK(expect_control(path,"SET 1",0));
  CHECK(expect_control(path,"ADD FVB0000000000000001 switch First",1));
@@ -96,6 +143,9 @@ static int dynamic_test(void){
  CHECK(expect_control(path,"TARGET FVB0000000000000006 21.5",1));CHECK(frame(s[1],p,461,57)&&p[24]==43);
  CHECK(expect_control(path,"MODE FVB0000000000000006 off",1));CHECK(frame(s[1],p,461,57)&&p[24]==253);
  CHECK(expect_control(path,"TIMER FVB0000000000000006 cancel",1));CHECK(frame(s[1],p,461,117));
+ CHECK(expect_control(path,"TIMER FVB0000000000000006 boost 99999999999999999999999999",0));
+ CHECK(expect_control(path,"TIMER FVB0000000000000006 boost -1",0));
+ CHECK(expect_control(path,"SCHEDULE FVB0000000000000006 active 4294967336 36 100 200",0));
  CHECK(expect_control(path,"SCHEDULE FVB0000000000000006 active 40 36 100 200",1));CHECK(frame(s[1],p,461,57));CHECK(frame(s[1],p,461,55));
  int watch=socket(AF_UNIX,SOCK_SEQPACKET,0);struct sockaddr_un a={.sun_family=AF_UNIX};strcpy(a.sun_path,path);
  CHECK(watch>=0&&!connect(watch,(struct sockaddr*)&a,sizeof(a)));
@@ -160,6 +210,7 @@ static int dynamic_test(void){
  CHECK(expect_control(path,"ADD FVB0000000000000012 switch Next",1));
  CHECK(frame(s[1],p,501,0));CHECK(frame(s[1],p,501,35));CHECK(frame(s[1],p,501,15));
  close(watch);close(s[0]);close(s[1]);
+ if(golden_file){CHECK(fgetc(golden_file)==EOF);fclose(golden_file);}
  puts("PASS dynamic registry: empty startup, all profiles, durable identity gaps, local interface encoding, state isolation, controls, WATCH");return 0;
 }
 #undef CHECK

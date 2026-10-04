@@ -39,6 +39,76 @@ Assistant state. Messages are local, versioned and independent of Home
 Assistant's internal storage format. Retained configuration and state allow
 both sides to recover after restart in either order.
 
+## Native source layout and ownership
+
+The C provider is split by responsibility. A button press still takes the same
+path: the native `send()` hook recognizes a complete AHA command, updates the
+selected device under a mutex, and puts a value-only event in a bounded queue.
+The worker takes that snapshot and sends JSON to the separate MQTT bridge.
+Confirmed HA state returns through the local control socket and the profile
+encoder constructs the original AHA status packets.
+
+| Source | Responsibility |
+|---|---|
+| `virtual_provider.c` | Interposition hooks, transport discovery, immutable identity substitution, device selection, native command handling and local control worker |
+| `provider_state.h` | One independent set of values for each device, plus the legacy self-test state |
+| `provider_profiles.c` | Exact switch, light, cover and thermostat packet layouts; explicit encoder context and output callback |
+| `provider_codec.h` | Unaligned-safe network-order numbers and complete-batch framing checks |
+| `provider_transport.c` | Finish short frame writes and retry interrupted writes through the original native function |
+| `provider_events.c` | Bounded event queue and checked JSON formatting outside the provider mutex |
+| `control_parse.h` | Bounded decimal timer/schedule parsing shared with the MQTT bridge, independent of 32/64-bit `unsigned long` |
+| `device_registry.c`, `registry_store.c` | Identity validation/allocation and atomic persistence, respectively |
+
+Device selection changes a pointer to the device's own values. It no longer
+copies dozens of globals into and out of a shared scratch space. Selection,
+registry changes, encoder use and queue operations all require the same mutex.
+The worker copies an event before releasing that mutex, so no borrowed device
+pointer escapes into JSON delivery. Profile helpers are private symbols; only
+the existing libc hooks interpose on the native process.
+
+Startup creates a nonblocking wake pipe and a private listener before enabling
+the hooks. An invalid socket path, failed listener or failed worker creation
+leaves the provider inactive and releases the resources it acquired. Discovery
+slots are reclaimed when either socketpair endpoint closes, so reconnects do
+not permanently exhaust the fixed table. Socket type flags are independent of
+the stream type. Closed WATCH clients are retired before accepting another
+client, even when no device event arrives to reveal the disconnection.
+
+### Native review boundaries
+
+The refactor keeps the reverse-engineered wire constants, identities, control
+commands and MQTT schema. `tests/fixtures/provider-v0.1.4-dynamic.hex` contains
+the complete sequence of frames observed by the dynamic integration test using
+the original provider at commit `99bd3f2`. The test compares every byte after
+zeroing only the clock-derived Function 95/98 and thermostat activation fields.
+This includes all supported profiles, state isolation, restore gaps, native
+commands, mixed batches and confirmed state feedback. The legacy integration
+test remains separate.
+
+Fault tests also cover queue overflow order, undersized JSON buffers, numeric
+overflow, startup descriptor ownership, interrupted/short/zero-progress writes
+and errors from closing a persistent file. Atomic save never replaces the old
+file on those failures and never retries `close()` on a possibly reused fd.
+
+Remaining operating limits are explicit:
+
+- The event ring retains the newest 31 pending commands and drops the oldest
+  on overflow, matching the existing policy. It is bounded, not a durable queue.
+- Native output holds the provider mutex to keep frame order. Short positive
+  writes and `EINTR` are completed; zero progress, `EAGAIN` and other errors fail
+  immediately. A fatal failure after a stream prefix cannot retract those bytes.
+  This is not a nonblocking or real-time transport redesign.
+- A slow local control client can occupy the worker for its existing one-second
+  receive timeout. Watcher sends remain nonblocking; slow watchers disconnect.
+- The provider is process-lifetime code: stopping the package restarts `aha`.
+  Unloading an active provider with `dlclose()` is unsupported.
+- Directory `fsync` after the registry rename remains best-effort. Power-loss
+  durability depends on the filesystem and the separate Freetz flash-persist
+  step; a successful in-memory/native test does not prove flash durability.
+- Offline golden tests and host sanitizers do not prove undocumented AVM thread
+  behavior, radio synchronization or 440 pages. A dedicated-box smoke test is
+  still required before deploying the refactor or expanding firmware support.
+
 ## Device identity and lifecycle
 
 Each mapping receives an immutable random 64-bit identifier. Its FRITZ UID is

@@ -269,6 +269,7 @@ static int write_all(int descriptor, const char *data, size_t length) {
             if (errno == EINTR) continue;
             return 0;
         }
+        if (written == 0) return 0;
         data += written;
         length -= (size_t)written;
     }
@@ -311,11 +312,18 @@ int fvb_registry_save_file(const char *path,
     }
     descriptor = open(temporary, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW, 0600);
     if (descriptor < 0 || !write_all(descriptor, serialized, strlen(serialized)) ||
-        write_all(descriptor, "\n", 1) == 0 || fsync(descriptor) != 0 ||
-        close(descriptor) != 0) {
+        write_all(descriptor, "\n", 1) == 0 || fsync(descriptor) != 0) {
         if (descriptor >= 0) close(descriptor);
         unlink(temporary);
         set_error(error, error_size, "cannot write registry atomically");
+        goto done;
+    }
+    /* close() may release the descriptor even when reporting an error.
+     * Never retry: another thread could already own the reused fd number. */
+    if (close(descriptor) != 0) {
+        descriptor = -1;
+        unlink(temporary);
+        set_error(error, error_size, "cannot close registry file");
         goto done;
     }
     descriptor = -1;

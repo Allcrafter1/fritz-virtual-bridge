@@ -24,6 +24,8 @@ $(PKG_CONFIGURED_NOP)
 $($(PKG)_PROVIDER): $($(PKG)_DIR)/.configured
 	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra -fPIC -shared \
 		-o $@ $(FRITZVIRTUAL_DIR)/virtual_provider.c \
+		$(FRITZVIRTUAL_DIR)/provider_profiles.c $(FRITZVIRTUAL_DIR)/provider_events.c \
+		$(FRITZVIRTUAL_DIR)/provider_transport.c \
 		$(FRITZVIRTUAL_DIR)/device_registry.c -ldl -pthread
 
 $($(PKG)_CONTROL): $($(PKG)_DIR)/.configured

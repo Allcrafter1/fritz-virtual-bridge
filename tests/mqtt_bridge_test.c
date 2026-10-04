@@ -92,6 +92,8 @@ int main(void){
     feedback(registry.devices[1].uid,"target_temperature","20.5");assert(strstr(feedback_cache[1][4],"20.5"));
     feedback(registry.devices[1].uid,"target_temperature","20.2");assert(strstr(feedback_cache[1][4],"20.5"));
     feedback(registry.devices[1].uid,"timer","boost 4294967296");assert(!*feedback_cache[1][6]);
+    feedback(registry.devices[1].uid,"timer","boost 9999999999999999999999999");assert(!*feedback_cache[1][6]);
+    feedback(registry.devices[1].uid,"schedule","active 4294967336 36 50 60");assert(!*feedback_cache[1][7]);
     feedback(registry.devices[1].uid,"schedule","active 40 36 50 60");assert(strstr(feedback_cache[1][7],"active"));
     char directory[]="/tmp/fvb-mqtt-test-XXXXXX";assert(mkdtemp(directory));
     snprintf(config.registry_file,sizeof(config.registry_file),"%s/registry.json",directory);
