@@ -215,6 +215,13 @@ static ssize_t emit_write(int fd,const void *buf,size_t n){
             p16(packet+32,selected_device->hanfun.discriminator);}
         if(function==98 && n==216){memset(packet+24,0,80);
             memcpy(packet+24,selected_device->name,strlen(selected_device->name));
+            /* The local 8.25 ETSI receiver swaps this opaque interface array
+             * again after decoding the network payload. */
+            for(unsigned offset=112;offset<152;offset+=4){
+                unsigned value=u32(packet+offset);
+                packet[offset]=value;packet[offset+1]=value>>8;
+                packet[offset+2]=value>>16;packet[offset+3]=value>>24;
+            }
             p16(packet+152,selected_device->hanfun.unit_id);}
         if(function==118 && n>=36)p16(packet+24,selected_device->hanfun.unit_id);
     }
@@ -549,15 +556,29 @@ static int emit_all(void){
 static int dynamic_control(char *cmd,size_t capacity){
     char operation[24],uid[20],rest[160];int offset=0;
     if(sscanf(cmd,"%23s %19s %n",operation,uid,&offset)<2)return -1;
-    if(!strcmp(operation,"ADD")){
+    if(!strcmp(operation,"ADD")||!strcmp(operation,"RESTORE")){
+        unsigned restored_id=0;
+        if(!strcmp(operation,"RESTORE")){
+            char *end=NULL;
+            unsigned long value=strtoul(cmd+offset,&end,10);
+            if(end==cmd+offset||*end!=' '||value<FVB_FIRST_REMOTE_ID||value>UINT16_MAX)return 0;
+            restored_id=(unsigned)value;offset=(int)(end-cmd)+1;
+        }
         char profile[40];int name_offset=0;
         if(sscanf(cmd+offset,"%39s %n",profile,&name_offset)!=1||!name_offset)return 0;
         fvb_device_profile p;
         for(p=0;p<FVB_PROFILE_COUNT;++p)if(!strcmp(profile,fvb_profile_name(p)))break;
         const fvb_device *existing=fvb_registry_find(&registry,uid);
-        if(existing)return existing->profile==p&&!strcmp(existing->name,cmd+offset+name_offset);
+        if(existing)return (!restored_id||existing->remote_id==restored_id)&&existing->profile==p&&!strcmp(existing->name,cmd+offset+name_offset);
         uint16_t id;
-        if(fvb_registry_add(&registry,registry.revision,uid,cmd+offset+name_offset,p,&id)!=FVB_REGISTRY_OK)return 0;
+        uint32_t watermark=registry.next_remote_id;
+        if(restored_id){
+            if(fvb_registry_find_remote(&registry,(uint16_t)restored_id))return 0;
+            registry.next_remote_id=restored_id;
+        }
+        fvb_registry_result added=fvb_registry_add(&registry,registry.revision,uid,cmd+offset+name_offset,p,&id);
+        if(added!=FVB_REGISTRY_OK){registry.next_remote_id=watermark;return 0;}
+        if(registry.next_remote_id<watermark)registry.next_remote_id=watermark;
         const fvb_device *d=fvb_registry_find_remote(&registry,id);
         device_values[d-registry.devices]=initial_values;
         /* Configuration is accepted offline; ANNOUNCE/transport reconnect retries it. */

@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/Allcrafter1/fritz-virtual-bridge/issues",
   "mqtt": ["fritzvirtual/+/bridge/info"],
   "requirements": [],
-  "version": "0.1.2"
+  "version": "0.1.3"
 }

@@ -78,6 +78,10 @@ static int dynamic_test(void){
    snprintf(command,sizeof(command),"UNIT FVB000000000000000%u",i+3);
    CHECK(expect_control(path,command,1));CHECK(frame(s[1],p,id,98));
    CHECK(u32(p+108)==(i==0?265:i==1?278:281));
+   /* Local 7530 receiver reverses the opaque interface words. The unit
+    * must therefore advertise 512/513/etc in little-endian on this hop. */
+   if(i<2){CHECK(u32(p+112)==0x00020000);CHECK(u32(p+116)==0x01020000);}
+   if(i==1)CHECK(u32(p+120)==0x02020000);
    unsigned count=i==1?4:2;
    for(unsigned j=0;j<count;j++)CHECK(frame(s[1],p,id,118));
   }else{
@@ -121,8 +125,19 @@ static int dynamic_test(void){
  CHECK(expect_control(path,"LEVEL FVB0000000000000003 50",0));
  CHECK(expect_control(path,"UNIT FVB0000000000000003",1));CHECK(frame(s[1],p,458,98));
  CHECK(frame(s[1],p,458,118));CHECK(frame(s[1],p,458,118)&&p[36]==60);
+ /* Durable allocation can contain gaps after deletion and process restart. */
+ CHECK(expect_control(path,"RESTORE FVB0000000000000010 500 switch Restored",1));
+ CHECK(frame(s[1],p,500,0));CHECK(frame(s[1],p,500,35));CHECK(frame(s[1],p,500,15));
+ CHECK(expect_control(path,"RESTORE FVB0000000000000011 490 switch Earlier",1));
+ CHECK(frame(s[1],p,490,0));CHECK(frame(s[1],p,490,35));CHECK(frame(s[1],p,490,15));
+ CHECK(expect_control(path,"RESTORE FVB0000000000000010 500 switch Restored",1));
+ CHECK(expect_control(path,"RESTORE FVB0000000000000010 501 switch Restored",0));
+ CHECK(expect_control(path,"RESTORE FVB0000000000000012 500 switch Collision",0));
+ CHECK(expect_control(path,"RESTORE FVB0000000000000012 65536 switch Invalid",0));
+ CHECK(expect_control(path,"ADD FVB0000000000000012 switch Next",1));
+ CHECK(frame(s[1],p,501,0));CHECK(frame(s[1],p,501,35));CHECK(frame(s[1],p,501,15));
  close(watch);close(s[0]);close(s[1]);
- puts("PASS dynamic registry: empty startup, all profiles, identity, state isolation, controls, WATCH");return 0;
+ puts("PASS dynamic registry: empty startup, all profiles, durable identity gaps, local interface encoding, state isolation, controls, WATCH");return 0;
 }
 #undef CHECK
 

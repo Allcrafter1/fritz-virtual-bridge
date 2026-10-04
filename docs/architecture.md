@@ -81,6 +81,16 @@ Management JSON is validated and persisted by the separate MQTT process. The
 provider inside `aha` receives only a bounded, validated local snapshot and
 never parses MQTT credentials or writes persistent files.
 
+Provider restoration carries each persistent remote ID explicitly. Replaying
+only device names in insertion order is insufficient after deletions: the
+durable allocator retains gaps while an empty provider starts at 456.
+
+For the pinned local 7530 receiver, Function 98's opaque interface array uses
+little-endian words; the surrounding network fields remain big-endian. The
+local ETSI handler performs another byte reversal on this array. Incorrect
+encoding can leave a visible parent device without a controllable unit.
+Native unit creation must be checked independently of transport acceptance.
+
 The exact version-1 messages, validation rules and recovery semantics are in
 [MQTT protocol version 1](mqtt-protocol.md).
 

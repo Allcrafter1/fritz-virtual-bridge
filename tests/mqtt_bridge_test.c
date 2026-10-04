@@ -40,12 +40,17 @@ static pid_t fake_provider(const char *path){
             int fd=accept(listener,NULL,NULL);if(fd<0)_exit(2);
             char command[256],reply[512];ssize_t n=recv(fd,command,sizeof(command)-1,0);
             if(n<=0){close(fd);continue;}command[n]=0;
+            if(!strncmp(command,"RESTORE ",8)){
+                char uid[20];unsigned restored;
+                assert(sscanf(command,"RESTORE %19s %u",uid,&restored)==2);
+                assert(restored==456);
+            }
             if(!strcmp(command,"TEST WRONG_ID"))id=999;
             if(!strcmp(command,"TEST NAME_CONFLICT")){id=456;conflict=1;}
             if(!strncmp(command,"RENAME ",7)){conflict=0;renamed++;}
             if(!strncmp(command,"UNIT ",5))units++;
             snprintf(reply,sizeof(reply),"{\"ok\":%s,\"connected\":true,\"generation\":7,\"remote_id\":%u,\"profile\":\"color_temperature_light\",\"renamed\":%u,\"units\":%u}",
-                conflict&&!strncmp(command,"ADD ",4)?"false":"true",id,renamed,units);
+                conflict&&!strncmp(command,"RESTORE ",8)?"false":"true",id,renamed,units);
             (void)send(fd,reply,strlen(reply),MSG_NOSIGNAL);close(fd);
         }
     }

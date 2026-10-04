@@ -156,13 +156,14 @@ static int is_hanfun(fvb_device_profile profile){
 }
 static int provider_device(const fvb_device *device){
     char command[256];
-    snprintf(command,sizeof(command),"ADD %s %s %s",device->uid,fvb_profile_name(device->profile),device->name);
+    snprintf(command,sizeof(command),"RESTORE %s %u %s %s",device->uid,device->remote_id,fvb_profile_name(device->profile),device->name);
     cJSON *reply=provider_query(command);
     cJSON *id=cJSON_GetObjectItemCaseSensitive(reply,"remote_id");
     const cJSON *profile=cJSON_GetObjectItemCaseSensitive(reply,"profile");
     int identity_ok=reply&&cJSON_IsNumber(id)&&id->valuedouble==device->remote_id&&
         cJSON_IsString(profile)&&!strcmp(profile->valuestring,fvb_profile_name(device->profile));
     int ok=identity_ok&&cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(reply,"ok"));
+    if(!identity_ok)fprintf(stderr,"mqtt_bridge: provider identity mismatch for %s (expected remote_id %u)\n",device->uid,device->remote_id);
     cJSON_Delete(reply);
     if(!identity_ok)return 0;
     if(!ok){
@@ -177,7 +178,7 @@ static int provider_device(const fvb_device *device){
     }
     return 1;
 }
-/* ADD must retain insertion order: persistent remote IDs are never recycled. */
+/* Restore the durable IDs explicitly; deleted devices leave allocator gaps. */
 static int reconcile_provider_locked(void){
     provider_ready=0;unit_due=0;
     cJSON *status=provider_query("GET");

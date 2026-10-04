@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3 - 2026-10-04
+
+- Restore each device's persisted remote ID explicitly after provider restarts,
+  including allocation gaps left by deleted devices. Previously an ID mismatch
+  stopped provisioning before the lamp unit was created.
+- Correct the HAN-FUN interface-list byte order for the local 7530 / 8.25
+  receiver. A device could previously appear by name but have no assignable
+  lamp or blind unit for a directly paired controller.
+- Add regression coverage for durable IDs, collisions and local interface
+  encoding. Verified native dimmable unit creation on the laboratory 7530.
+- This fix requires rebuilding/updating the FRITZ!Box package; updating only
+  the Home Assistant integration does not replace the provider.
+
 ## 0.1.2 - 2026-10-04
 
 - Detect an unresponsive internal provider control channel and disconnect the
