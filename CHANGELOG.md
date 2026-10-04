@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Reworked the README into a problem-first onboarding path for FRITZ!Smart
+  Control 440 users and added a complete German entry page.
+- Documented the practically tested Windows/WSL2 setup, including a copyable
+  Codex-assisted installation prompt.
+- Clarified the recommended dedicated Mosquitto-app login and the separate MQTT
+  credentials used by the bridge.
+
 ## 0.1.0 - 2026-10-04
 
 First public test release.

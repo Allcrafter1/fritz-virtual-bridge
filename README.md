@@ -1,66 +1,112 @@
 # FRITZ! Virtual Bridge
 
-FRITZ! Virtual Bridge makes selected Home Assistant entities available to a
-FRITZ!Box as native-looking Smart Home devices. They can then be assigned to a
-FRITZ!Smart Control 440 in the normal FRITZ!OS user interface.
+[English](README.md) | [Deutsch](README.de.md)
 
-The project is an experimental source-only bridge built from a working
-laboratory proof of concept. Version 0.1.0 is the first public test release;
-it deliberately supports one exact hardware and firmware combination:
+Use a **FRITZ!Smart Control 440** to control Home Assistant lights, switches,
+blinds and thermostats that FRITZ!OS cannot normally assign to the controller.
 
-- FRITZ!Box 7530 (classic/HW236) as a dedicated bridge
-- FRITZ!OS 8.25 with Freetz-NG
-- an unmodified FRITZ!Box 6690 Cable running FRITZ!OS 8.25 as Mesh master
-- FRITZ!Smart Control 440 firmware 05.45
-- Home Assistant with the MQTT integration
+FRITZ! Virtual Bridge creates a persistent virtual FRITZ! Smart Home device for
+each selected Home Assistant entity. You assign that virtual device to the 440
+in the normal FRITZ!OS interface. Commands and confirmed state then travel in
+both directions over local MQTT.
 
-The proof of concept already supports bidirectional switching, dimming, color
-temperature, cover control, thermostat setpoints, Boost/cold timers and a
-Home-Assistant-owned thermostat schedule shadow with the native 440
-`next change` display.
+For example, a Zigbee, Matter, Hue or Wi-Fi light that already works in Home
+Assistant can appear as a FRITZ! light on the 440. Depending on the selected
+profile, the 440 can switch it, dim it and adjust its color temperature.
 
-## Installation model
+> [!IMPORTANT]
+> This is independent, experimental community software. The first release
+> supports one exact bridge model and firmware version. Use a dedicated bridge
+> box, not the FRITZ!Box responsible for your Internet connection.
 
-1. Connect a compatible dedicated 7530 directly to a Linux computer and run
-   the guided local build/installation script.
-2. Configure IP-client/Mesh operation in FRITZ!OS and the MQTT connection in
-   the Freetz web interface. Normal use requires no SSH or file editing.
-3. Install the Home Assistant custom integration through HACS.
-4. Add the bridge once, then add one mapping per Home Assistant entity.
-5. Follow the final wizard page or its persistent notification into FRITZ!OS
-   and assign or configure the generated virtual devices there.
+## What you need
 
-No AVM firmware, AVM program or modified firmware image is distributed by
-this repository. Users build and install their own image. See
-[Licensing and boundaries](docs/licensing.md) before installing anything.
+- a FRITZ!Smart Control 440;
+- a dedicated classic **FRITZ!Box 7530 / HW236 with FRITZ!OS 8.25**;
+- Home Assistant with a reachable MQTT broker and the MQTT integration;
+- Ethernet for the one-time bridge installation;
+- one of the tested build environments:
+  - x86-64 Linux, or
+  - Windows with x86-64 WSL2 and Ubuntu.
 
-The guided local build, HACS setup and rollback procedure is documented in
-[Installation](docs/installation.md).
+The Windows -> WSL2 path was used for the original laboratory installation and
+is a supported path. Codex can guide and perform most of that setup from WSL2.
 
-## Status
+## Start here
 
-The source is experimental software. The dynamic provider, persistent registry,
-MQTT discovery and Home Assistant mapping flow have completed an end-to-end
-laboratory migration test, including a clean source build. Direct pairing of
-the 440 with the bridge box still needs a dedicated latency qualification. The
-compatibility guard refuses to inject the provider into an unknown `aha`
-binary.
+1. **Prepare the bridge:** locally build and install the package on the
+   dedicated 7530 using Linux or WSL2.
+2. **Connect it:** configure the 7530 as an IP client, then enter the MQTT
+   broker and its dedicated login in the Freetz web interface.
+3. **Install the integration:** add this repository to HACS as an Integration,
+   install **FRITZ! Virtual Bridge**, and restart Home Assistant.
+4. **Add devices:** select a Home Assistant entity, create its virtual FRITZ!
+   device, and follow the link to FRITZ!OS to assign it to the 440.
 
-The agreed product architecture and user workflow are documented in
-[Architecture](docs/architecture.md). The publishable MQTT contract is in
-[MQTT protocol version 1](docs/mqtt-protocol.md); raw laboratory captures and
-AVM binaries are deliberately excluded from the repository.
+**[Open the complete installation guide](docs/installation.md)**
 
-The bridge currently supports at most 32 persistent virtual devices. Removing
-a Home Assistant mapping also removes its native FRITZ!OS device and releases
-the corresponding bridge registry slot. Allocated provider IDs are not reused.
+The guide includes the tested Windows/WSL2 route, a copyable prompt for a
+Codex-assisted installation, MQTT setup, HACS setup, updating, diagnostics and
+rollback.
 
-The current Mesh-master test topology adds substantial command latency. Tests
-through a 6690 Mesh master to the 7530 bridge consistently delivered absolute
-brightness values, but took roughly 6–7 seconds per command. MQTT and Home
-Assistant state feedback accounted for less than one second of that path. A
-440 paired directly with the bridge box is the intended low-latency topology
-and still needs a dedicated qualification run.
+If modifying the FRITZ!Box feels too complicated, open a
+[GitHub issue](https://github.com/Allcrafter1/fritz-virtual-bridge/issues).
+The maintainer is willing to work through a compatible setup with users and use
+that experience to improve the installation path. Never post passwords,
+configuration exports, serial numbers or other private device data in an issue.
+
+## Supported virtual devices
+
+| Home Assistant source | Virtual FRITZ! device | Available functions |
+|---|---|---|
+| `switch`, `input_boolean` | switch/socket | on/off |
+| `light` | dimmable or color-temperature light | on/off, brightness, optional color temperature |
+| `cover` | blind | open, close, stop, position |
+| `climate` | radiator thermostat | mode, setpoint, Boost/cold timer, optional next-change schedule display |
+
+FRITZ!OS remains the layout editor for the 440. Home Assistant owns the mapping
+between the virtual FRITZ! device and the real entity. One virtual device can be
+placed on several controllers, and replacing the mapped Home Assistant entity
+can preserve its FRITZ! identity and existing 440 assignments.
+
+## Current compatibility and limitations
+
+Version 0.1.0 was validated with:
+
+- FRITZ!Box 7530 classic / HW236, FRITZ!OS 8.25;
+- FRITZ!Box 6690 Cable, FRITZ!OS 8.25, as Mesh master;
+- FRITZ!Smart Control 440, firmware 05.45;
+- Home Assistant with MQTT.
+
+The bridge checks the exact internal `aha` binary fingerprint and refuses to
+start the provider on an unknown build. Automatic FRITZ!OS updates must remain
+disabled on the bridge until a new version has been analysed and allowlisted.
+
+The validated Mesh-master route works but added about 6-7 seconds of command
+latency in the laboratory. Pairing the 440 directly with the dedicated bridge
+box is the intended low-latency topology and still needs final qualification.
+See [Compatibility](docs/compatibility.md) for the exact baseline.
+
+No AVM firmware, AVM binary or modified firmware image is distributed here.
+The user builds their own image locally. Read [Licensing and distribution
+boundaries](docs/licensing.md) before installing it.
+
+## Technical documentation
+
+- [Installation, update and rollback](docs/installation.md)
+- [Architecture and user workflow](docs/architecture.md)
+- [Compatibility policy](docs/compatibility.md)
+- [MQTT protocol version 1](docs/mqtt-protocol.md)
+- [Product decisions](docs/decisions.md)
+- [Licensing and distribution boundaries](docs/licensing.md)
+
+## Development disclosure
+
+Significant parts of the interoperability research, implementation and
+documentation were created with assistance from generative AI. The resulting
+architecture, source code and behaviour were reviewed and tested against the
+documented laboratory setup. Contributions and independent verification are
+welcome.
 
 ## License
 

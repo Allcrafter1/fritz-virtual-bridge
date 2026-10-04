@@ -1,5 +1,24 @@
 # Installation on a dedicated FRITZ!Box 7530
 
+[English](installation.md) | [Deutsch](installation.de.md)
+
+This guide takes you from an unused compatible FRITZ!Box to a working virtual
+device on the FRITZ!Smart Control 440. The normal path is:
+
+1. build and install the bridge firmware locally;
+2. configure the bridge network and MQTT connection in its web interfaces;
+3. install the Home Assistant integration through HACS;
+4. create a virtual device and assign it in FRITZ!OS.
+
+After the one-time firmware preparation, normal configuration requires no SSH,
+terminal commands or manual file editing.
+
+If the FRITZ!Box modification is the part keeping you from trying the project,
+open a [GitHub issue](https://github.com/Allcrafter1/fritz-virtual-bridge/issues).
+The maintainer is willing to work through a compatible setup with users and
+turn recurring difficulties into a simpler documented process. Do not attach
+passwords, configuration exports, serial numbers or other private device data.
+
 The first public target is deliberately narrow: classic FRITZ!Box 7530
 (HW236), German FRITZ!OS 8.25, and the exact `aha` fingerprint listed in the
 compatibility document. Do not use the build on another model or firmware.
@@ -13,8 +32,8 @@ fingerprint check until it has been analysed and supported explicitly.
 
 You need:
 
-- an x86-64 Linux build machine with Git and the normal Freetz-NG build
-  prerequisites;
+- an x86-64 Linux environment with Git and the normal Freetz-NG build
+  prerequisites. This can be native Linux or Ubuntu under WSL2 on Windows;
 - the dedicated FRITZ!Box 7530;
 - an MQTT broker reachable by both the box and Home Assistant;
 - Home Assistant with its MQTT integration.
@@ -26,16 +45,105 @@ unmodified; the provider can enter virtual endpoints through the repeater's
 existing Smart Home/Mesh path. Pairing the 440 directly with the bridge box is
 the intended low-latency topology but still requires its final qualification.
 
-[Freetz-NG documents its supported build hosts, dependencies and installation
+[Freetz-NG documents its build hosts, dependencies and installation
 methods](https://freetz-ng.github.io/freetz-ng/wiki/10_Beginner/install.en/).
 By default, the script does not run `sudo` or install host packages. Missing
 host tools such as `bison` or `flex` are reported by the Freetz prerequisite
 check. The optional `--install-prerequisites` mode delegates their installation
 to Freetz-NG and may request the user's `sudo` password.
 
+## Choose an installation environment
+
+### Native x86-64 Linux
+
+Ubuntu, Debian and other Freetz-NG build hosts can run the project script
+directly. Keep the computer connected to the Internet while building, then
+connect its Ethernet adapter directly to the dedicated 7530 for the first
+installation.
+
+### Windows with WSL2 and Ubuntu — tested
+
+The original laboratory bridge was prepared from Windows using x86-64 WSL2 and
+Ubuntu. This is therefore a practically tested installation path for this
+project even though upstream Freetz-NG treats WSL installations as potentially
+problematic in general.
+
+Open PowerShell as Administrator and install or update WSL2:
+
+```powershell
+wsl --install -d Ubuntu
+wsl --update
+```
+
+Restart Windows if requested, open Ubuntu, and keep the repository in the Linux
+home directory rather than under `/mnt/c`:
+
+```sh
+sudo apt update
+sudo apt install --yes git
+mkdir -p ~/src
+cd ~/src
+git clone https://github.com/Allcrafter1/fritz-virtual-bridge.git
+cd fritz-virtual-bridge
+uname -m
+```
+
+`uname -m` must print `x86_64`. Connect the dedicated 7530 directly by Ethernet.
+If Windows does not retain an address while the box reboots, assign
+`192.168.178.2` with subnet mask `255.255.255.0` temporarily to that Windows
+Ethernet adapter. A firewall or VPN that intercepts FTP can prevent access to
+the short-lived EVA bootloader; pause it for this isolated direct connection if
+the script cannot reach `192.168.178.1`.
+
+Then use the same guided build command as on native Linux:
+
+```sh
+./tools/build-firmware.sh --install-prerequisites --flash
+```
+
+### Codex-assisted installation — tested with WSL2
+
+[Codex can run inside WSL2](https://learn.chatgpt.com/docs/windows/wsl). Open
+Codex in the cloned repository and paste the following prompt. Replace the
+bracketed values when needed.
+
+```text
+Set up FRITZ! Virtual Bridge from this repository on my separate laboratory
+FRITZ!Box 7530. Work independently and carry the setup through as far as the
+local environment allows. Inspect the repository instructions and current
+state first. Verify that this is x86-64 Linux or WSL2, install only the required
+build prerequisites, and use the repository's pinned build script.
+
+Target hardware: classic FRITZ!Box 7530, HWRevision 236.
+Required target firmware: German FRITZ!OS 8.25.
+Bootloader address: 192.168.178.1.
+
+This is a dedicated bridge box, not my production Internet router. Do not
+modify any other FRITZ!Box. Do not download, publish or commit a prebuilt AVM
+or modified firmware image. Build it locally as documented. Before flashing,
+check the model and firmware with me, make sure I have exported the stock
+FRITZ!Box configuration, and show me the exact locally built image. Then start
+the repository's interactive first-install procedure. Ask me only for physical
+actions you cannot perform, such as connecting Ethernet, removing or applying
+power, and confirming the actual flash operation.
+
+After the box starts, guide me through the normal FRITZ!OS and Freetz web
+interfaces: IP-client setup, disabling automatic FRITZ!OS updates, securing
+Freetz, and configuring the MQTT broker. My broker host is [HOME_ASSISTANT_IP],
+port 1883, and I will enter the dedicated MQTT username and password myself.
+Then guide me through adding the repository to HACS, installing the Home
+Assistant integration, creating one test virtual device, and assigning it in
+FRITZ!OS. Verify each completed step and record any deviation from the
+documented compatibility baseline.
+```
+
+Codex can inspect, build and run the installer, but the user must still perform
+the physical power cycle and make the final flash decision. If the box does not
+match HW236 and FRITZ!OS 8.25, stop before flashing.
+
 ## Guided local build and first installation
 
-On a supported Linux build host, clone this repository and run:
+From the repository directory on native Linux or WSL2, run:
 
 ```sh
 ./tools/build-firmware.sh --flash
@@ -96,7 +204,9 @@ Then enable **Packages → F → FRITZ! Virtual Bridge** in `make menuconfig`.
 3. Open the Freetz web interface on port `81`, secure its administration access,
    then open **Packages → FRITZ! Virtual Bridge**. No SSH setup is required.
 4. Enter the existing MQTT broker address, credentials and a unique bridge ID
-   containing 3–32 lowercase letters, digits, `_` or `-`. Give this MQTT user
+   containing 3–32 lowercase letters, digits, `_` or `-`. Use the LAN IP or
+   hostname that the FRITZ!Box can reach; Home Assistant's internal hostname
+   `core-mosquitto` is not normally reachable from the box. Give this MQTT user
    read/write access only to `fritzvirtual/<bridge-id>/#` when the broker
    supports per-topic ACLs.
 5. Enable the service and apply the Freetz configuration. Freetz stores the
@@ -152,12 +262,28 @@ integration. The FRITZ!Box is a separate MQTT client: enter its broker account
 under **Freetz → Packages → FRITZ! Virtual Bridge**. Freetz writes those values
 to the root-only runtime file `/var/run/fritzvirtual/mqtt.conf` (mode `0600`).
 
-With Home Assistant's official Mosquitto app, the simple UI-only path is to
-create a dedicated, non-administrator user under **Settings → People → Users**
-and enter that name and password in the Freetz package page. Advanced users may
-instead configure a broker-local account and a topic ACL. An empty user and
-password work only with brokers that permit anonymous clients; the official
-Mosquitto app does not.
+With Home Assistant's official Mosquitto app, the recommended simple path is a
+dedicated broker-local login:
+
+1. Open **Settings → Apps → Mosquitto broker → Configuration**.
+2. Add a login that is used only by this bridge:
+
+   ```yaml
+   logins:
+     - username: fritzvirtual
+       password: choose-a-long-unique-password
+   ```
+
+3. Save and restart the Mosquitto app.
+4. Enter the Home Assistant machine's LAN address, port `1883`, that username
+   and that password under **Freetz → Packages → FRITZ! Virtual Bridge**.
+
+The Mosquitto app also accepts dedicated Home Assistant users. A broker-local
+login is recommended here because it is visibly scoped to MQTT and does not
+create another Home Assistant login. Advanced users can additionally apply a
+topic ACL for `fritzvirtual/<bridge-id>/#`. An empty user and password work only
+with brokers that permit anonymous clients; the official Mosquitto app does
+not.
 
 ## Updating
 
