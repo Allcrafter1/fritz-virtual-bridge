@@ -21,7 +21,14 @@ project_dir="$(cd -- "$script_dir/.." && pwd)"
 freetz_dir="$(cd -- "$1" && pwd)"
 package_source="$project_dir/freetz/package"
 package_target="$freetz_dir/make/pkgs/fritzvirtual"
-archive_name="fritzvirtual-0.1.0.tar.gz"
+package_version="$(sed -n 's/^$(call PKG_INIT_BIN, \([^)]*\))$/\1/p' \
+    "$package_source/fritzvirtual.mk.in")"
+[[ "$package_version" =~ ^[0-9A-Za-z._+-]+$ ]] || {
+    echo "Unable to read a valid package version from fritzvirtual.mk.in" >&2
+    exit 1
+}
+package_directory="fritzvirtual-$package_version"
+archive_name="$package_directory.tar.gz"
 archive_path="$freetz_dir/dl/$archive_name"
 
 [[ -f "$freetz_dir/Makefile" && -d "$freetz_dir/make/pkgs" ]] || {
@@ -36,11 +43,11 @@ cp -a "$package_source/files/." "$package_target/files/"
 
 archive_tmp="$(mktemp -d)"
 trap 'rm -rf "$archive_tmp"' EXIT
-mkdir -p "$archive_tmp/fritzvirtual-0.1.0"
+mkdir -p "$archive_tmp/$package_directory"
 cp "$package_source/src/"*.c "$package_source/src/"*.h \
-    "$archive_tmp/fritzvirtual-0.1.0/"
+    "$archive_tmp/$package_directory/"
 tar --sort=name --mtime='@1790985600' --owner=0 --group=0 --numeric-owner \
-    -C "$archive_tmp" -czf "$archive_path" fritzvirtual-0.1.0
+    -C "$archive_tmp" -czf "$archive_path" "$package_directory"
 
 source_hash="$(sha256sum "$archive_path" | cut -d' ' -f1)"
 sed "s/@SOURCE_HASH@/$source_hash/" \

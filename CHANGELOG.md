@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-10-04
 
 - Reworked the README into a problem-first onboarding path for FRITZ!Smart
   Control 440 users and added a complete German entry page.
@@ -11,6 +11,8 @@
 - Fixed the Freetz service status check to use the MQTT bridge PID file.
 - Fixed missing labels in the Freetz package UI by declaring its translated
   CGI file to the Freetz language build step.
+- Made the Freetz installer derive the source archive version from the package
+  definition so release bumps cannot leave a stale archive name behind.
 - Documented update isolation, two-part backups and direct 440 pairing with the
   bridge box.
 

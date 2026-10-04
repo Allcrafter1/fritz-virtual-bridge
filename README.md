@@ -71,7 +71,7 @@ can preserve its FRITZ! identity and existing 440 assignments.
 
 ## Current compatibility and limitations
 
-Version 0.1.0 was validated with:
+Version 0.1.1 was validated with:
 
 - FRITZ!Box 7530 classic / HW236, FRITZ!OS 8.25;
 - FRITZ!Box 6690 Cable, FRITZ!OS 8.25, as Mesh master;
