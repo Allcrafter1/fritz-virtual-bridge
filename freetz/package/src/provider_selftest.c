@@ -140,6 +140,8 @@ static int dynamic_test(void){
  CHECK(expect_control(path,"COLOR_TEMP FVB0000000000000004 4000",1));CHECK(frame(s[1],p,459,118)&&u16(p+40)==4000);
  CHECK(expect_control(path,"POSITION FVB0000000000000005 25",1));CHECK(frame(s[1],p,460,118)&&p[36]==75);CHECK(frame(s[1],p,460,118));
  CHECK(expect_control(path,"TARGET FVB0000000000000006 nan",0));
+ CHECK(expect_control(path,"TARGET FVB0000000000000006 inf",0));
+ CHECK(expect_control(path,"TARGET FVB0000000000000006 -inf",0));
  CHECK(expect_control(path,"TARGET FVB0000000000000006 21.5",1));CHECK(frame(s[1],p,461,57)&&p[24]==43);
  CHECK(expect_control(path,"MODE FVB0000000000000006 off",1));CHECK(frame(s[1],p,461,57)&&p[24]==253);
  CHECK(expect_control(path,"TIMER FVB0000000000000006 cancel",1));CHECK(frame(s[1],p,461,117));

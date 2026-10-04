@@ -109,19 +109,72 @@ start_watchdog() {
 	echo $! >"$WATCHDOG_PID"
 }
 
+start_bridge() {
+	LD_LIBRARY_PATH=/usr/lib/freetz "$BRIDGE" "$MQTT_CONFIG" >>/var/log/fritzvirtual-mqtt.log 2>&1 &
+	bridge_pid=$!
+	echo "$bridge_pid" >"$BRIDGE_PID"
+	sleep 1
+	if [ -r "/proc/$bridge_pid/cmdline" ] &&
+		grep -q 'fritzvirtual-mqtt-bridge' "/proc/$bridge_pid/cmdline"; then
+		return 0
+	fi
+	rm -f "$BRIDGE_PID"
+	echo "MQTT bridge exited during startup; restoring stock aha" >&2
+	virtual_pid="$(pidof aha 2>/dev/null)"
+	[ -z "$virtual_pid" ] || kill $virtual_pid
+	wait_for_aha_stop || return 1
+	start_stock_aha
+	return 1
+}
+
 stop_watchdog() {
 	[ -r "$WATCHDOG_PID" ] || return 0
 	watchdog_pid="$(cat "$WATCHDOG_PID")"
 	case "$watchdog_pid" in
-		*[!0-9]*|"") ;;
-		*) kill "$watchdog_pid" 2>/dev/null ;;
+		*[!0-9]*|"")
+			rm -f "$WATCHDOG_PID"
+			return 0
+			;;
 	esac
 	rm -f "$WATCHDOG_PID"
+	if [ ! -r "/proc/$watchdog_pid/cmdline" ] ||
+		! grep -q 'rc.fritzvirtual' "/proc/$watchdog_pid/cmdline" ||
+		! grep -q 'watchdog' "/proc/$watchdog_pid/cmdline"; then
+		return 0
+	fi
+	kill "$watchdog_pid" 2>/dev/null
 	for unused in 1 2 3 4 5 6 7; do
 		[ ! -d "/proc/$watchdog_pid" ] && return 0
+		[ ! -r "/proc/$watchdog_pid/cmdline" ] && return 0
+		grep -q 'rc.fritzvirtual' "/proc/$watchdog_pid/cmdline" || return 0
 		sleep 1
 	done
 	echo "provider watchdog did not stop" >&2
+	return 1
+}
+
+stop_bridge() {
+	[ -r "$BRIDGE_PID" ] || return 0
+	bridge_pid="$(cat "$BRIDGE_PID")"
+	case "$bridge_pid" in
+		*[!0-9]*|"")
+			rm -f "$BRIDGE_PID"
+			return 0
+			;;
+	esac
+	rm -f "$BRIDGE_PID"
+	if [ ! -r "/proc/$bridge_pid/cmdline" ] ||
+		! grep -q 'fritzvirtual-mqtt-bridge' "/proc/$bridge_pid/cmdline"; then
+		return 0
+	fi
+	kill "$bridge_pid" 2>/dev/null
+	for unused in 1 2 3 4 5 6 7 8 9 10; do
+		[ ! -d "/proc/$bridge_pid" ] && return 0
+		[ ! -r "/proc/$bridge_pid/cmdline" ] && return 0
+		grep -q 'fritzvirtual-mqtt-bridge' "/proc/$bridge_pid/cmdline" || return 0
+		sleep 1
+	done
+	echo "MQTT bridge did not stop" >&2
 	return 1
 }
 
@@ -160,26 +213,13 @@ start() {
 
 	recover_virtual_aha || return 1
 
-	LD_LIBRARY_PATH=/usr/lib/freetz "$BRIDGE" "$MQTT_CONFIG" >>/var/log/fritzvirtual-mqtt.log 2>&1 &
-	echo $! >"$BRIDGE_PID"
+	start_bridge || return 1
 	start_watchdog
 }
 
 stop() {
 	stop_watchdog || return 1
-	if [ -r "$BRIDGE_PID" ]; then
-		bridge_pid="$(cat "$BRIDGE_PID")"
-		case "$bridge_pid" in
-			*[!0-9]*|"") ;;
-			*)
-				if [ -r "/proc/$bridge_pid/cmdline" ] &&
-					grep -q 'fritzvirtual-mqtt-bridge' "/proc/$bridge_pid/cmdline"; then
-					kill "$bridge_pid" 2>/dev/null
-				fi
-				;;
-		esac
-	fi
-	rm -f "$BRIDGE_PID"
+	stop_bridge || return 1
 	if [ -S /var/tmp/aha-virtual-provider.ctl ]; then
 		virtual_pid="$(pidof aha 2>/dev/null)"
 		[ -z "$virtual_pid" ] || kill $virtual_pid

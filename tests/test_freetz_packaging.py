@@ -23,3 +23,6 @@ def test_provider_watchdog_is_packaged() -> None:
     assert "provider health check failed three times" in init_script
     assert '"$0" watchdog' in init_script
     assert "stop_watchdog || return 1" in init_script
+    assert "stop_bridge || return 1" in init_script
+    assert "fritzvirtual-mqtt-bridge" in init_script
+    assert "MQTT bridge exited during startup; restoring stock aha" in init_script

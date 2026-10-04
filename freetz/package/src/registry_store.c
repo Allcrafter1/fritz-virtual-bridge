@@ -104,7 +104,7 @@ char *fvb_registry_serialize(const fvb_device_registry *registry) {
         !cJSON_AddNumberToObject(root, "next_remote_id", registry->next_remote_id) ||
         !cJSON_AddItemToObject(root, "devices", devices)) goto done;
     devices = NULL;
-    devices = cJSON_GetObjectItemCaseSensitive(root, "devices");
+    cJSON *items = cJSON_GetObjectItemCaseSensitive(root, "devices");
     for (index = 0; index < registry->count; ++index) {
         const fvb_device *device = &registry->devices[index];
         const char *profile = fvb_profile_name(device->profile);
@@ -132,10 +132,11 @@ char *fvb_registry_serialize(const fvb_device_registry *registry) {
                 goto done;
             }
         }
-        cJSON_AddItemToArray(devices, item);
+        cJSON_AddItemToArray(items, item);
     }
     serialized = cJSON_PrintUnformatted(root);
 done:
+    cJSON_Delete(devices); /* Non-NULL only before ownership passed to root. */
     cJSON_Delete(root);
     return serialized;
 }
@@ -156,7 +157,19 @@ int fvb_registry_deserialize(const char *serialized,
         set_error(error, error_size, "missing registry input");
         return 0;
     }
-    root = cJSON_ParseWithLength(serialized, strlen(serialized));
+    /* cJSON stores decoded strings without their original length. Reject a
+     * decoded NUL so identity/name suffixes cannot disappear during parsing.
+     * Skip escaped backslashes: a literal "\\u0000" remains a valid name. */
+    for (const char *p = serialized; *p; ++p) {
+        if (*p != '\\') continue;
+        ++p;
+        if (!*p) break;
+        if (!strncmp(p, "u0000", 5)) {
+            set_error(error, error_size, "registry contains a decoded NUL");
+            return 0;
+        }
+    }
+    root = cJSON_ParseWithLengthOpts(serialized, strlen(serialized) + 1, NULL, 1);
     if (!cJSON_IsObject(root)) {
         set_error(error, error_size, "registry is not valid JSON object");
         goto fail;
@@ -346,36 +359,48 @@ int fvb_registry_load_file(const char *path,
                            size_t error_size) {
     struct stat status;
     char *contents;
-    FILE *file;
-    size_t read_bytes;
-    int ok;
-    if (!path || !registry || lstat(path, &status) != 0 ||
+    size_t read_bytes = 0;
+    int descriptor, ok;
+    if (!path || !registry) {
+        set_error(error, error_size, "invalid registry path or destination");
+        return 0;
+    }
+    /* Inspect and read the same opened inode. NONBLOCK prevents a FIFO from
+     * hanging startup before fstat can reject it; regular files ignore it. */
+    descriptor = open(path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC | O_NONBLOCK);
+    if (descriptor < 0 || fstat(descriptor, &status) != 0 ||
         !S_ISREG(status.st_mode) || status.st_size < 2 ||
         status.st_size > (off_t)FVB_MAX_JSON_BYTES) {
+        if (descriptor >= 0) close(descriptor);
         set_error(error, error_size, "registry file is missing or invalid");
         return 0;
     }
     contents = malloc((size_t)status.st_size + 1u);
     if (!contents) {
+        close(descriptor);
         set_error(error, error_size, "out of memory loading registry");
         return 0;
     }
-    file = fopen(path, "r");
-    if (!file) {
-        free(contents);
-        set_error(error, error_size, "cannot open registry file");
-        return 0;
+    while (read_bytes < (size_t)status.st_size) {
+        ssize_t n = read(descriptor, contents + read_bytes,
+                         (size_t)status.st_size - read_bytes);
+        if (n < 0 && errno == EINTR) continue;
+        if (n <= 0) goto read_failed;
+        read_bytes += (size_t)n;
     }
-    read_bytes = fread(contents, 1, (size_t)status.st_size, file);
-    if (read_bytes != (size_t)status.st_size || ferror(file)) {
-        fclose(file);
-        free(contents);
-        set_error(error, error_size, "cannot read registry file");
-        return 0;
-    }
-    fclose(file);
+    /* Reject growth and embedded NULs rather than accepting a valid prefix. */
+    char extra;
+    ssize_t n;
+    do { n = read(descriptor, &extra, 1); } while (n < 0 && errno == EINTR);
+    if (n != 0 || memchr(contents, 0, read_bytes)) goto read_failed;
+    close(descriptor);
     contents[read_bytes] = 0;
     ok = fvb_registry_deserialize(contents, registry, error, error_size);
     free(contents);
     return ok;
+read_failed:
+    close(descriptor);
+    free(contents);
+    set_error(error, error_size, "cannot read complete registry file");
+    return 0;
 }

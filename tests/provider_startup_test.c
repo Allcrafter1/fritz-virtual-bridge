@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/socket.h>
 
 static unsigned open_descriptors(void) {
     DIR *directory = opendir("/proc/self/fd");
@@ -29,7 +31,7 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[2], "bind")) {
         snprintf(path, sizeof(path), "/tmp/fvb-missing-%ld/provider.sock", (long)getpid());
     } else {
-        assert(!strcmp(argv[2], "thread"));
+        assert(!strcmp(argv[2], "thread") || !strcmp(argv[2], "symbols"));
         snprintf(path, sizeof(path), "/tmp/fvb-startup-%ld.sock", (long)getpid());
     }
     setenv("AHA_VIRTUAL_LAB", "1", 1);
@@ -41,6 +43,14 @@ int main(int argc, char **argv) {
     if (!library) { fprintf(stderr, "%s\n", dlerror()); return 1; }
     assert(open_descriptors() == before);
     assert(access(path, F_OK) != 0);
+    if (!strcmp(argv[2], "symbols")) {
+        ssize_t (*send_hook)(int, const void *, size_t, int) = dlsym(library, "send");
+        int (*pair_hook)(int, int, int, int[2]) = dlsym(library, "socketpair");
+        assert(send_hook && pair_hook);
+        assert(send_hook(-1, "x", 1, 0) == -1 && errno == ENOSYS);
+        int pair[2];
+        assert(pair_hook(AF_UNIX, SOCK_STREAM, 0, pair) == -1 && errno == ENOSYS);
+    }
     dlclose(library);
     puts("PASS failed provider startup leaves no descriptors or control socket");
     return 0;

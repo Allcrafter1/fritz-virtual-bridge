@@ -7,6 +7,11 @@ $(PKG)_SITE:=https://invalid.example.invalid/source-only-package
 $(PKG)_DEPENDS_ON += mosquitto libcjson
 $(PKG)_STARTLEVEL:=90
 
+# TARGET_CFLAGS may contain -Ofast: preserve finite-number validation before
+# floating-point casts. The pinned uClibc has no FORTIFY implementation.
+$(PKG)_CFLAGS:=-fno-fast-math -fno-finite-math-only -fstack-protector-strong -Werror
+$(PKG)_LDFLAGS:=-Wl,-z,relro,-z,now,-z,defs
+
 $(PKG)_PROVIDER:=$($(PKG)_DIR)/virtual_provider.so
 $(PKG)_CONTROL:=$($(PKG)_DIR)/provider_ctl
 $(PKG)_AHA_CONTROL:=$($(PKG)_DIR)/fritzvirtual-aha-control
@@ -22,27 +27,27 @@ $(PKG_UNPACKED)
 $(PKG_CONFIGURED_NOP)
 
 $($(PKG)_PROVIDER): $($(PKG)_DIR)/.configured
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra -fPIC -shared \
+	$(TARGET_CC) $(TARGET_CFLAGS) $(FRITZVIRTUAL_CFLAGS) -std=gnu11 -Wall -Wextra -fPIC -shared \
 		-o $@ $(FRITZVIRTUAL_DIR)/virtual_provider.c \
 		$(FRITZVIRTUAL_DIR)/provider_profiles.c $(FRITZVIRTUAL_DIR)/provider_events.c \
 		$(FRITZVIRTUAL_DIR)/provider_transport.c \
-		$(FRITZVIRTUAL_DIR)/device_registry.c -ldl -pthread
+		$(FRITZVIRTUAL_DIR)/device_registry.c -ldl -pthread $(FRITZVIRTUAL_LDFLAGS)
 
 $($(PKG)_CONTROL): $($(PKG)_DIR)/.configured
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
-		-o $@ $(FRITZVIRTUAL_DIR)/provider_ctl.c $(TARGET_LDFLAGS)
+	$(TARGET_CC) $(TARGET_CFLAGS) $(FRITZVIRTUAL_CFLAGS) -std=gnu11 -Wall -Wextra \
+		-o $@ $(FRITZVIRTUAL_DIR)/provider_ctl.c $(TARGET_LDFLAGS) $(FRITZVIRTUAL_LDFLAGS)
 
 $($(PKG)_AHA_CONTROL): $($(PKG)_DIR)/.configured
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
-		-o $@ $(FRITZVIRTUAL_DIR)/aha_control.c -ldl $(TARGET_LDFLAGS)
+	$(TARGET_CC) $(TARGET_CFLAGS) $(FRITZVIRTUAL_CFLAGS) -std=gnu11 -Wall -Wextra \
+		-o $@ $(FRITZVIRTUAL_DIR)/aha_control.c -ldl $(TARGET_LDFLAGS) $(FRITZVIRTUAL_LDFLAGS)
 
 $($(PKG)_BRIDGE): $($(PKG)_DIR)/.configured \
 		$(MOSQUITTO_LIB_BINARY) $(LIBCJSON_STAGING_BINARY)
-	$(TARGET_CC) $(TARGET_CFLAGS) -std=gnu11 -Wall -Wextra \
+	$(TARGET_CC) $(TARGET_CFLAGS) $(FRITZVIRTUAL_CFLAGS) -std=gnu11 -Wall -Wextra \
 		-I$(MOSQUITTO_DIR)/include -o $@ $(FRITZVIRTUAL_DIR)/mqtt_bridge.c \
 		$(FRITZVIRTUAL_DIR)/device_registry.c $(FRITZVIRTUAL_DIR)/registry_store.c \
 		-L$(MOSQUITTO_DIR)/lib -lmosquitto -lcjson -lpthread $(TARGET_LDFLAGS) \
-		-Wl,--dynamic-linker=/usr/lib/freetz/ld-uClibc.so.1
+		-Wl,--dynamic-linker=/usr/lib/freetz/ld-uClibc.so.1 $(FRITZVIRTUAL_LDFLAGS)
 
 $($(PKG)_TARGET_PROVIDER): $($(PKG)_PROVIDER)
 	$(INSTALL_FILE)

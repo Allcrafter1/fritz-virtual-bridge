@@ -118,23 +118,48 @@ static int provider_connect(void){
     if(strlen(config.control_socket)>=sizeof(address.sun_path)){close(fd);return -1;}
     strcpy(address.sun_path,config.control_socket);
     struct timeval timeout={2,0};
-    setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
-    setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+    if(setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout)) ||
+       setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout))){close(fd);return -1;}
     if(connect(fd,(struct sockaddr*)&address,sizeof(address))){close(fd);return -1;}
     return fd;
 }
 static cJSON *provider_query(const char *request){
     int fd=provider_connect();if(fd<0)return NULL;
     char reply[4096];size_t size=strlen(request);ssize_t n=-1;
-    if(send(fd,request,size,MSG_NOSIGNAL)==(ssize_t)size)n=recv(fd,reply,sizeof(reply)-1,MSG_TRUNC);
+    ssize_t sent;
+    do {sent=send(fd,request,size,MSG_NOSIGNAL);}while(sent<0&&errno==EINTR);
+    if(sent==(ssize_t)size){
+        do {n=recv(fd,reply,sizeof(reply)-1,MSG_TRUNC);}while(n<0&&errno==EINTR);
+    }
     close(fd);
     if(n<=0||n>=(ssize_t)sizeof(reply))return NULL;
-    reply[n]=0;return cJSON_Parse(reply);
+    if(memchr(reply,0,(size_t)n))return NULL;
+    reply[n]=0;return cJSON_ParseWithOpts(reply,NULL,1);
 }
 static int provider_request(const char *request){
     cJSON *reply=provider_query(request);
     int ok=reply&&cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(reply,"ok"));
     cJSON_Delete(reply);return ok;
+}
+/* Both external helpers are bounded. In particular a stuck flash-save helper
+ * must not hold registry_lock forever and prevent MQTT/provider recovery. */
+static int wait_child(pid_t child, unsigned seconds){
+    struct timespec start,now;
+    if(clock_gettime(CLOCK_MONOTONIC,&start))goto terminate;
+    for(;;){
+        int status;pid_t waited=waitpid(child,&status,WNOHANG);
+        if(waited==child)return WIFEXITED(status)&&WEXITSTATUS(status)==0;
+        if(waited<0&&errno!=EINTR)return 0;
+        if(clock_gettime(CLOCK_MONOTONIC,&now))break;
+        if(now.tv_sec-start.tv_sec>(time_t)seconds ||
+           (now.tv_sec-start.tv_sec==(time_t)seconds&&now.tv_nsec>=start.tv_nsec))break;
+        struct timespec pause={0,100000000};
+        (void)nanosleep(&pause,NULL);
+    }
+terminate:
+    kill(child,SIGKILL);
+    while(waitpid(child,NULL,0)<0&&errno==EINTR){}
+    return 0;
 }
 static int native_delete(const char *uid){
     pid_t child=fork();
@@ -143,14 +168,7 @@ static int native_delete(const char *uid){
         char *const arguments[]={config.aha_control,"delete",(char*)uid,NULL};
         execv(config.aha_control,arguments);_exit(127);
     }
-    for(unsigned attempt=0;attempt<40;attempt++){
-        int status;pid_t waited=waitpid(child,&status,WNOHANG);
-        if(waited==child)return WIFEXITED(status)&&WEXITSTATUS(status)==0;
-        if(waited<0&&errno!=EINTR)return 0;
-        usleep(100000);
-    }
-    kill(child,SIGKILL);while(waitpid(child,NULL,0)<0&&errno==EINTR){}
-    return 0;
+    return wait_child(child,4);
 }
 static int is_hanfun(fvb_device_profile profile){
     return profile==FVB_PROFILE_DIMMABLE_LIGHT||profile==FVB_PROFILE_COLOR_TEMPERATURE_LIGHT||profile==FVB_PROFILE_COVER;
@@ -216,7 +234,7 @@ static cJSON *registry_json_locked(void){
     char *json=fvb_registry_serialize(&registry);
     if(!json)return NULL;
     cJSON *root=cJSON_Parse(json);fvb_registry_serialized_free(json);
-    if(root)cJSON_AddStringToObject(root,"bridge_id",config.bridge_id);
+    if(root&&!cJSON_AddStringToObject(root,"bridge_id",config.bridge_id)){cJSON_Delete(root);return NULL;}
     return root;
 }
 static void publish_json(const char *topic,const cJSON *json,int retained){
@@ -227,13 +245,17 @@ static void publish_json(const char *topic,const cJSON *json,int retained){
 static void publish_registry_locked(void){
     cJSON *root=registry_json_locked();if(root){publish_json(topic_registry,root,1);cJSON_Delete(root);}
     root=cJSON_CreateObject();if(!root)return;
-    cJSON_AddNumberToObject(root,"schema_version",1);
-    cJSON_AddStringToObject(root,"bridge_id",config.bridge_id);
-    cJSON_AddStringToObject(root,"bridge_version","1.0");
-    cJSON_AddBoolToObject(root,"ready",provider_ready);
-    cJSON_AddNumberToObject(root,"revision",(double)registry.revision);
+    if(!cJSON_AddNumberToObject(root,"schema_version",1)||
+       !cJSON_AddStringToObject(root,"bridge_id",config.bridge_id)||
+       !cJSON_AddStringToObject(root,"bridge_version","1.0")||
+       !cJSON_AddBoolToObject(root,"ready",provider_ready)||
+       !cJSON_AddNumberToObject(root,"revision",(double)registry.revision)){cJSON_Delete(root);return;}
     cJSON *profiles=cJSON_AddArrayToObject(root,"profiles");
-    for(unsigned i=0;i<FVB_PROFILE_COUNT;i++)cJSON_AddItemToArray(profiles,cJSON_CreateString(fvb_profile_name((fvb_device_profile)i)));
+    if(!profiles){cJSON_Delete(root);return;}
+    for(unsigned i=0;i<FVB_PROFILE_COUNT;i++){
+        cJSON *profile=cJSON_CreateString(fvb_profile_name((fvb_device_profile)i));
+        if(!profile||!cJSON_AddItemToArray(profiles,profile)){cJSON_Delete(profile);cJSON_Delete(root);return;}
+    }
     publish_json(topic_info,root,1);cJSON_Delete(root);
 }
 /* No shell expansion: config contains an executable and whitespace-separated
@@ -251,9 +273,7 @@ static int persist_flash(void){
     if(args[0][0]!='/')return 0;
     pid_t child=fork();if(child<0)return 0;
     if(!child){execv(args[0],args);_exit(127);}
-    int status;pid_t waited;
-    do {waited=waitpid(child,&status,0);}while(waited<0&&errno==EINTR);
-    return waited==child&&WIFEXITED(status)&&WEXITSTATUS(status)==0;
+    return wait_child(child,30);
 }
 static int json_integer(const cJSON *v,uint64_t *result){
     if(!cJSON_IsNumber(v)||!isfinite(v->valuedouble)||v->valuedouble<0||v->valuedouble>MAX_JSON_INTEGER)return 0;
@@ -352,6 +372,19 @@ static const char *management_candidate(const cJSON *root,fvb_device_registry *c
     if(result!=FVB_REGISTRY_OK)return result==FVB_REGISTRY_FULL?"registry_full":result==FVB_REGISTRY_NOT_FOUND?"unknown_uid":"invalid_device";
     *mutate=1;return NULL;
 }
+/* Registry mutations append or delete without reordering surviving devices.
+ * Thus old_index >= i and a forward compaction cannot overwrite an unread
+ * cache row. New UIDs always receive an empty row, never a removed device's. */
+static void remap_feedback_cache(const fvb_device_registry *old_registry){
+    for(size_t i=0;i<registry.count;i++){
+        const fvb_device *old=fvb_registry_find(old_registry,registry.devices[i].uid);
+        if(old){
+            size_t old_index=(size_t)(old-old_registry->devices);
+            if(old_index!=i)memmove(feedback_cache[i],feedback_cache[old_index],sizeof(feedback_cache[i]));
+        }else memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
+    }
+    for(size_t i=registry.count;i<FVB_REGISTRY_CAPACITY;i++)memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
+}
 static void management_locked(const struct mosquitto_message *message){
     if(message->retain||message->payloadlen<=0||message->payloadlen>8192||memchr(message->payload,0,(size_t)message->payloadlen))return;
     char payload[8193];memcpy(payload,message->payload,(size_t)message->payloadlen);payload[message->payloadlen]=0;
@@ -380,14 +413,7 @@ static void management_locked(const struct mosquitto_message *message){
                 else {
                     fvb_device_registry old_registry=registry;
                     flash_saved=persist_flash();flash_dirty=!flash_saved;registry=candidate;accepted=1;
-                    for(size_t i=0;i<registry.count;i++){
-                        const fvb_device *old=fvb_registry_find(&old_registry,registry.devices[i].uid);
-                        if(old){
-                            size_t old_index=(size_t)(old-old_registry.devices);
-                            if(old_index!=i)memmove(feedback_cache[i],feedback_cache[old_index],sizeof(feedback_cache[i]));
-                        }else memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
-                    }
-                    for(size_t i=registry.count;i<FVB_REGISTRY_CAPACITY;i++)memset(feedback_cache[i],0,sizeof(feedback_cache[i]));
+                    remap_feedback_cache(&old_registry);
                     if(!reconcile_provider_locked())error="provider_pending";
                     if(!flash_saved)error="flash_persist_failed";
                 }
@@ -401,15 +427,18 @@ static void management_locked(const struct mosquitto_message *message){
     publish_registry_locked();
     cJSON *response=cJSON_CreateObject();
     if(response){
-        cJSON_AddNumberToObject(response,"schema_version",1);cJSON_AddStringToObject(response,"bridge_id",config.bridge_id);
-        cJSON_AddStringToObject(response,"request_id",id);cJSON_AddBoolToObject(response,"ok",accepted&&!error);
-        cJSON_AddBoolToObject(response,"accepted",accepted);cJSON_AddBoolToObject(response,"ready",provider_ready);
-        cJSON_AddBoolToObject(response,"flash_persisted",!flash_dirty);
-        cJSON_AddNumberToObject(response,"revision",(double)registry.revision);
-        if(error)cJSON_AddStringToObject(response,"error",error);
-        cJSON *snapshot=registry_json_locked();if(snapshot)cJSON_AddItemToObject(response,"registry",snapshot);
+        int complete=cJSON_AddNumberToObject(response,"schema_version",1)&&
+            cJSON_AddStringToObject(response,"bridge_id",config.bridge_id)&&
+            cJSON_AddStringToObject(response,"request_id",id)&&cJSON_AddBoolToObject(response,"ok",accepted&&!error)&&
+            cJSON_AddBoolToObject(response,"accepted",accepted)&&cJSON_AddBoolToObject(response,"ready",provider_ready)&&
+            cJSON_AddBoolToObject(response,"flash_persisted",!flash_dirty)&&
+            cJSON_AddNumberToObject(response,"revision",(double)registry.revision);
+        if(complete&&error)complete=cJSON_AddStringToObject(response,"error",error)!=NULL;
+        cJSON *snapshot=complete?registry_json_locked():NULL;
+        if(!snapshot||!cJSON_AddItemToObject(response,"registry",snapshot)){cJSON_Delete(snapshot);complete=0;}
         char topic[TEXT_SIZE*2];snprintf(topic,sizeof(topic),"%s/management/response/%s",config.topic_prefix,id);
-        publish_json(topic,response,0);cJSON_Delete(response);
+        if(complete)publish_json(topic,response,0);
+        cJSON_Delete(response);
     }
     cJSON_Delete(root);
 }
@@ -554,8 +583,13 @@ static void watch_provider(void){
         int fd=provider_connect();
         if(fd<0){sleep(1);continue;}
         if(send(fd,"WATCH\n",6,MSG_NOSIGNAL)!=6){close(fd);sleep(1);continue;}
-        char message[4096];ssize_t length=recv(fd,message,sizeof(message)-1,0);
-        if(length<=0){close(fd);sleep(1);continue;}
+        char message[4096];ssize_t length=recv(fd,message,sizeof(message)-1,MSG_TRUNC);
+        if(length<=0||length>=(ssize_t)sizeof(message)||memchr(message,0,(size_t)length)){close(fd);sleep(1);continue;}
+        message[length]=0;
+        cJSON *ack=cJSON_ParseWithOpts(message,NULL,1);
+        int watching=cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(ack,"ok"));
+        cJSON_Delete(ack);
+        if(!watching){close(fd);sleep(1);continue;}
         pthread_mutex_lock(&registry_lock);reconcile_provider_locked();publish_registry_locked();pthread_mutex_unlock(&registry_lock);
         struct timeval no_timeout={0,0};setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&no_timeout,sizeof(no_timeout));
         time_t retry=time(NULL)+5;
@@ -627,14 +661,20 @@ int main(int argc,char **argv){
         if(!persist_flash()){flash_dirty=1;fprintf(stderr,"mqtt_bridge: initial flash persistence failed\n");}
     }else if(!fvb_registry_load_file(config.registry_file,&registry,error,sizeof(error))){fprintf(stderr,"mqtt_bridge: %s\n",error);return 2;}
     signal(SIGINT,stop_handler);signal(SIGTERM,stop_handler);signal(SIGPIPE,SIG_IGN);
-    mosquitto_lib_init();mqtt=mosquitto_new(config.client_id,true,NULL);if(!mqtt)return 3;
-    if(*config.username||*config.password)mosquitto_username_pw_set(mqtt,config.username,config.password);
-    mosquitto_will_set(mqtt,topic_availability,7,"offline",1,true);
+    int result=mosquitto_lib_init();
+    if(result!=MOSQ_ERR_SUCCESS)return 3;
+    mqtt=mosquitto_new(config.client_id,true,NULL);
+    if(!mqtt){mosquitto_lib_cleanup();return 3;}
+    if(*config.username||*config.password)result=mosquitto_username_pw_set(mqtt,config.username,config.password);
+    if(result==MOSQ_ERR_SUCCESS)result=mosquitto_will_set(mqtt,topic_availability,7,"offline",1,true);
     mosquitto_connect_callback_set(mqtt,mqtt_connect);mosquitto_message_callback_set(mqtt,mqtt_message);
-    mosquitto_reconnect_delay_set(mqtt,1,30,true);
-    int result=mosquitto_connect_async(mqtt,config.host,config.port,30);
+    if(result==MOSQ_ERR_SUCCESS)result=mosquitto_reconnect_delay_set(mqtt,1,30,true);
+    if(result==MOSQ_ERR_SUCCESS)result=mosquitto_connect_async(mqtt,config.host,config.port,30);
     if(result==MOSQ_ERR_SUCCESS)result=mosquitto_loop_start(mqtt);
-    if(result!=MOSQ_ERR_SUCCESS){fprintf(stderr,"mqtt_bridge: MQTT startup failed: %s\n",mosquitto_strerror(result));return 4;}
+    if(result!=MOSQ_ERR_SUCCESS){
+        fprintf(stderr,"mqtt_bridge: MQTT startup failed: %s\n",mosquitto_strerror(result));
+        mosquitto_destroy(mqtt);mosquitto_lib_cleanup();return 4;
+    }
     watch_provider();mosquitto_publish(mqtt,NULL,topic_availability,7,"offline",1,true);
     mosquitto_disconnect(mqtt);mosquitto_loop_stop(mqtt,true);mosquitto_destroy(mqtt);mosquitto_lib_cleanup();return 0;
 }

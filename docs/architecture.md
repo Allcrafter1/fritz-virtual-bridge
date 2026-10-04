@@ -90,6 +90,37 @@ overflow, startup descriptor ownership, interrupted/short/zero-progress writes
 and errors from closing a persistent file. Atomic save never replaces the old
 file on those failures and never retries `close()` on a possibly reused fd.
 
+The persistence reader opens one non-symlink descriptor, checks that descriptor
+with `fstat`, and reads it with an explicit size limit. It rejects FIFOs without
+blocking, truncated/growing files, embedded NUL bytes, decoded JSON NUL escapes,
+and trailing non-JSON text. Literal backslash text remains valid. Allocation
+fault tests exercise construction and cleanup of both persisted and published
+JSON, including children not yet attached to their parent object.
+
+The control CLI handles interrupted/short stdout writes and rejects truncated
+SEQPACKET replies or EOF before a reply. Provider control sockets close on exec;
+missing native function symbols leave the provider inactive. The MQTT process
+checks authentication/will/loop startup errors and validates WATCH acceptance.
+Native deletion and flash persistence have monotonic four- and thirty-second
+child-process deadlines. The cache tests cover every supported profile/property
+combination and prove that deletion compaction keeps feedback attached to its
+original UID.
+
+### Compiler and loader assumptions
+
+Freetz can supply `-Ofast`, which otherwise permits the compiler to assume that
+NaN and infinity never occur. The package appends `-fno-fast-math` and
+`-fno-finite-math-only` after those inherited flags, preserving validation before
+floating-point-to-integer conversions. Optimized tests explicitly include NaN
+and infinity. Package builds also use strict warnings, a strong stack protector,
+full RELRO/eager binding and undefined-symbol link checks.
+
+The ARM shared object was checked against exports from the original AVM
+libraries, including `__stack_chk_fail` in libc and `__stack_chk_guard` in the
+loader. The pinned uClibc headers explicitly disable `_FORTIFY_SOURCE`; this
+build therefore does not claim FORTIFY coverage. Loader symbol checks are an
+offline compatibility check, not a substitute for a dedicated-box test.
+
 Remaining operating limits are explicit:
 
 - The event ring retains the newest 31 pending commands and drops the oldest
@@ -105,6 +136,10 @@ Remaining operating limits are explicit:
 - Directory `fsync` after the registry rename remains best-effort. Power-loss
   durability depends on the filesystem and the separate Freetz flash-persist
   step; a successful in-memory/native test does not prove flash durability.
+- Helper deadlines supervise the direct child. Arbitrary configured commands
+  that daemonize grandchildren are outside that contract. Native device deletion
+  and registry persistence also remain separate operations without transactional
+  rollback across AVM and the filesystem.
 - Offline golden tests and host sanitizers do not prove undocumented AVM thread
   behavior, radio synchronization or 440 pages. A dedicated-box smoke test is
   still required before deploying the refactor or expanding firmware support.

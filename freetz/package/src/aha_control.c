@@ -11,8 +11,10 @@
 #include <unistd.h>
 
 static void *load_symbol(void *handle,const char *name){
+    dlerror();
     void *symbol=dlsym(handle,name);
-    if(!symbol)fprintf(stderr,"fritzvirtual-aha-control: %s\n",dlerror());
+    const char *error=dlerror();
+    if(error||!symbol){fprintf(stderr,"fritzvirtual-aha-control: %s\n",error?error:"missing symbol");return NULL;}
     return symbol;
 }
 static int valid_uid(const char *uid){
@@ -27,7 +29,7 @@ int main(int argc,char **argv){
     }
     void *lua=dlopen("liblua.so.1",RTLD_LAZY|RTLD_GLOBAL);
     void *aha=lua?dlopen("libaha.so.1",RTLD_LAZY|RTLD_GLOBAL):NULL;
-    if(!lua||!aha){fprintf(stderr,"fritzvirtual-aha-control: %s\n",dlerror());return 3;}
+    if(!lua||!aha){fprintf(stderr,"fritzvirtual-aha-control: %s\n",dlerror());if(lua)dlclose(lua);return 3;}
     void *(*create)(void)=load_symbol(lua,"luaL_newstate");
     void (*openlibs)(void*)=load_symbol(lua,"luaL_openlibs");
     int (*openaha)(void*)=load_symbol(aha,"luaopen_libaha");
@@ -37,8 +39,8 @@ int main(int argc,char **argv){
     const char *(*tostring)(void*,int,size_t*)=load_symbol(lua,"lua_tolstring");
     void (*settop)(void*,int)=load_symbol(lua,"lua_settop");
     void (*close_lua)(void*)=load_symbol(lua,"lua_close");
-    if(!create||!openlibs||!openaha||!loadstring||!call||!toboolean||!tostring||!settop||!close_lua)return 3;
-    void *state=create();if(!state)return 3;
+    if(!create||!openlibs||!openaha||!loadstring||!call||!toboolean||!tostring||!settop||!close_lua){dlclose(aha);dlclose(lua);return 3;}
+    void *state=create();if(!state){dlclose(aha);dlclose(lua);return 3;}
     openlibs(state);openaha(state);
     char script[512];
     int length=snprintf(script,sizeof(script),

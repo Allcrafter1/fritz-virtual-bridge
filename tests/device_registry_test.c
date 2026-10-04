@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 static const char *uid = "FVB00000000000000af";
 static void validation(void) {
     char name[81];
@@ -12,6 +13,14 @@ static void validation(void) {
     assert(!fvb_registry_valid_uid("FV"));
     assert(!fvb_registry_valid_uid("FVB"));
     assert(fvb_registry_valid_uid(uid));
+    for (size_t length = 0; length < 19; ++length) {
+        char *short_uid = malloc(length + 1);
+        assert(short_uid);
+        memcpy(short_uid, uid, length);
+        short_uid[length] = 0;
+        assert(!fvb_registry_valid_uid(short_uid));
+        free(short_uid);
+    }
     assert(!fvb_registry_valid_uid("FVB00000000000000ag"));
     assert(!fvb_registry_valid_uid("FVB00000000000000aff"));
     assert(!fvb_registry_valid_name(NULL)); assert(!fvb_registry_valid_name(""));

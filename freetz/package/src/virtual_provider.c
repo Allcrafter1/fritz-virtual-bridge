@@ -394,6 +394,7 @@ static void queue_thermostat_timer_event(unsigned mode, unsigned previous, uint3
 
 int socketpair(int domain, int type, int protocol, int sv[2]) {
     if (!original_socketpair) original_socketpair = dlsym(RTLD_NEXT, "socketpair");
+    if (!original_socketpair) { errno = ENOSYS; return -1; }
     int r = original_socketpair(domain, type, protocol, sv);
     if (enabled && !r && domain == AF_UNIX &&
         (type & ~(SOCK_CLOEXEC | SOCK_NONBLOCK)) == SOCK_STREAM) {
@@ -432,7 +433,6 @@ ssize_t write(int fd, const void*buf, size_t n) {
 }
 
 static ssize_t send_frame(int fd, const void*buf, size_t n, int flags) {
-    if (!original_send) original_send = dlsym(RTLD_NEXT, "send");
     const unsigned char*p = buf;
     if (enabled && n >= 24 && p[0] == 7 && p[1] == 3 && read_be16(p+2) == n &&
         read_be16(p+8) >= 450) {
@@ -663,6 +663,7 @@ static ssize_t send_frame(int fd, const void*buf, size_t n, int flags) {
 
 ssize_t send(int fd, const void*buf, size_t n, int flags) {
     if (!original_send) original_send = dlsym(RTLD_NEXT, "send");
+    if (!original_send) { errno = ENOSYS; return -1; }
     const unsigned char *p = buf;
     /* The native stream sender can batch several complete protocol frames
      * into one send(). Validate the whole batch before consuming anything;
@@ -1069,7 +1070,7 @@ static void *worker(void*unused) {
         }
         if (!(pf[0].revents&POLLIN)) continue;
         retire_closed_watchers(watchers);
-        int c = accept(listener, 0, 0);
+        int c = accept4(listener, 0, 0, SOCK_CLOEXEC);
         if (c < 0) continue;
         handle_control_client(c, watchers);
     }
@@ -1110,6 +1111,7 @@ __attribute__((constructor)) static void start(void) {
     original_send = dlsym(RTLD_NEXT, "send");
     original_close = dlsym(RTLD_NEXT, "close");
     original_socketpair = dlsym(RTLD_NEXT, "socketpair");
+    if (!original_write || !original_send || !original_close || !original_socketpair) return;
     const char *v = getenv("AHA_VIRTUAL_LAB");
     if (!v || strcmp(v, "1")) return;
     const char *legacy = getenv("AHA_VIRTUAL_LEGACY");

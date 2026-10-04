@@ -12,10 +12,12 @@ static unsigned hex_value(unsigned char c) {
     return c - 'A' + 10u;
 }
 int fvb_registry_valid_uid(const char *s) {
-    size_t i;
-    if (!s || s[0] != 'F' || s[1] != 'V' || s[2] != 'B') return 0;
+    size_t i, length = 0;
+    if (!s) return 0;
+    while (length < FVB_DEVICE_UID_BYTES && s[length]) ++length;
+    if (length != 19 || memcmp(s, "FVB", 3)) return 0;
     for (i = 3; i < 19; ++i) if (!hex_digit((unsigned char)s[i])) return 0;
-    return s[19] == '\0';
+    return 1;
 }
 static void canonical_uid(char out[20], const char *s) {
     size_t i;

@@ -28,10 +28,12 @@ jobs:
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/provider_ctl.c
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/provider_selftest.c
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/aha_control.c
+      - run: cc -std=gnu11 -Wall -Wextra -Werror tests/provider_ctl_test.c -o /tmp/provider_ctl_test
+      - run: /tmp/provider_ctl_test
       - run: cc -Wall -Wextra -Werror -fsyntax-only freetz/package/src/mqtt_bridge.c
       - run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Ifreetz/package/src freetz/package/src/device_registry.c tests/device_registry_test.c -o /tmp/device_registry_test
       - run: /tmp/device_registry_test
-      - run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Ifreetz/package/src freetz/package/src/device_registry.c freetz/package/src/registry_store.c tests/registry_store_test.c -lcjson -o /tmp/registry_store_test
+      - run: cc -Ofast -fno-fast-math -fno-finite-math-only -fstack-protector-strong -std=c11 -Wall -Wextra -Werror -pedantic -Ifreetz/package/src freetz/package/src/device_registry.c freetz/package/src/registry_store.c tests/registry_store_test.c -lcjson -o /tmp/registry_store_test
       - run: /tmp/registry_store_test
       - run: cc -std=gnu11 -Wall -Wextra -Werror -Ifreetz/package/src tests/registry_io_test.c freetz/package/src/device_registry.c -lcjson -o /tmp/registry_io_test
       - run: timeout 10 /tmp/registry_io_test
@@ -39,12 +41,14 @@ jobs:
       - run: /tmp/provider_components_test
       - run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Ifreetz/package/src tests/provider_transport_test.c freetz/package/src/provider_transport.c -o /tmp/provider_transport_test
       - run: /tmp/provider_transport_test
-      - run: cc -std=gnu11 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -Ifreetz/package/src freetz/package/src/device_registry.c freetz/package/src/registry_store.c tests/mqtt_bridge_test.c -lcjson -lpthread -lm -Wl,--gc-sections -o /tmp/mqtt_bridge_test
+      - run: cc -Ofast -fno-fast-math -fno-finite-math-only -fstack-protector-strong -std=gnu11 -Wall -Wextra -Werror -ffunction-sections -fdata-sections -Ifreetz/package/src freetz/package/src/device_registry.c freetz/package/src/registry_store.c tests/mqtt_bridge_test.c -lcjson -lpthread -lm -Wl,--gc-sections -o /tmp/mqtt_bridge_test
       - run: /tmp/mqtt_bridge_test
-      - run: cc -std=gnu11 -Wall -Wextra -Werror -fPIC -shared freetz/package/src/virtual_provider.c freetz/package/src/provider_profiles.c freetz/package/src/provider_events.c freetz/package/src/provider_transport.c freetz/package/src/device_registry.c -ldl -pthread -o /tmp/virtual_provider.so
+      - run: cc -Ofast -fno-fast-math -fno-finite-math-only -fstack-protector-strong -std=gnu11 -Wall -Wextra -Werror -fPIC -shared freetz/package/src/virtual_provider.c freetz/package/src/provider_profiles.c freetz/package/src/provider_events.c freetz/package/src/provider_transport.c freetz/package/src/device_registry.c -ldl -pthread -Wl,-z,relro,-z,now,-z,defs -o /tmp/virtual_provider.so
       - run: cc -std=gnu11 -Wall -Wextra -Werror freetz/package/src/provider_selftest.c -o /tmp/provider_selftest
       - run: cc -std=gnu11 -Wall -Wextra -Werror tests/provider_startup_test.c -ldl -o /tmp/provider_startup_test
       - run: cc -std=gnu11 -Wall -Wextra -Werror -fPIC -shared tests/provider_thread_failure.c -o /tmp/provider_thread_failure.so
+      - run: cc -std=gnu11 -Wall -Wextra -Werror -fPIC -shared tests/provider_missing_symbols.c -ldl -o /tmp/provider_missing_symbols.so
+      - run: LD_PRELOAD=/tmp/provider_missing_symbols.so /tmp/provider_startup_test /tmp/virtual_provider.so symbols
       - run: /tmp/provider_startup_test /tmp/virtual_provider.so long
       - run: /tmp/provider_startup_test /tmp/virtual_provider.so bind
       - run: LD_PRELOAD=/tmp/provider_thread_failure.so /tmp/provider_startup_test /tmp/virtual_provider.so thread

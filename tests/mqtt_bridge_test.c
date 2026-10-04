@@ -7,6 +7,12 @@
 #include <assert.h>
 
 static char published_response[16384];
+static unsigned allocation_calls,allocation_failure,live_allocations;
+static void *failing_malloc(size_t size){
+    if(++allocation_calls==allocation_failure)return NULL;
+    void *memory=malloc(size);if(memory)++live_allocations;return memory;
+}
+static void tracked_free(void *memory){if(memory)--live_allocations;free(memory);}
 int mosquitto_publish(struct mosquitto *client,int *mid,const char *topic,int length,const void *payload,int qos,bool retain){
     (void)client;(void)mid;(void)qos;(void)retain;
     if(strstr(topic,"/management/response/")){
@@ -56,7 +62,41 @@ static pid_t fake_provider(const char *path){
     }
     close(listener);return child;
 }
+static void profile_matrix_and_cache(void){
+    static const char *kinds[]={"state","level","color_temperature","hs","position","target_temperature","hvac_mode","timer","schedule"};
+    static const char *values[]={"ON","55","2700","120,100","60","20.5","heat","boost 2000","active 40 36 50 60"};
+    static const unsigned allowed[]={1u,3u,7u,1u<<4,(1u<<5)|(1u<<6)|(1u<<7)|(1u<<8)};
+    fvb_registry_init(&registry);provider_ready=0;
+    for(unsigned profile=0;profile<FVB_PROFILE_COUNT;profile++){
+        char uid[20];snprintf(uid,sizeof(uid),"FVB%016X",profile+1);
+        assert(fvb_registry_add(&registry,registry.revision,uid,"Matrix",(fvb_device_profile)profile,NULL)==FVB_REGISTRY_OK);
+        for(unsigned kind=0;kind<9;kind++){
+            memset(feedback_cache,0,sizeof(feedback_cache));
+            feedback(uid,kinds[kind],values[kind]);
+            int cached=0;for(unsigned field=0;field<8;field++)cached|=*feedback_cache[profile][field]!=0;
+            assert(cached==((allowed[profile]&(1u<<kind))!=0));
+        }
+    }
+    fvb_device_registry before=registry;
+    for(unsigned i=0;i<FVB_PROFILE_COUNT;i++)snprintf(feedback_cache[i][0],128,"row%u",i);
+    assert(fvb_registry_remove(&registry,registry.revision,before.devices[0].uid)==FVB_REGISTRY_OK);
+    assert(fvb_registry_remove(&registry,registry.revision,before.devices[2].uid)==FVB_REGISTRY_OK);
+    remap_feedback_cache(&before);
+    assert(!strcmp(feedback_cache[0][0],"row1"));
+    assert(!strcmp(feedback_cache[1][0],"row3"));
+    assert(!strcmp(feedback_cache[2][0],"row4"));
+    assert(!*feedback_cache[3][0]);
+    before=registry;
+    assert(fvb_registry_add(&registry,registry.revision,"FVB0000000000000099","New",FVB_PROFILE_SWITCH,NULL)==FVB_REGISTRY_OK);
+    remap_feedback_cache(&before);assert(!*feedback_cache[3][0]);
+    memset(feedback_cache,0,sizeof(feedback_cache));
+}
 int main(void){
+    profile_matrix_and_cache();
+    pid_t timed_child=fork();assert(timed_child>=0);
+    if(!timed_child){for(;;)pause();}
+    assert(!wait_child(timed_child,1));
+    assert(waitpid(timed_child,NULL,WNOHANG)==-1&&errno==ECHILD);
     assert(identifier_valid("bridge_7530-1",32)&&!identifier_valid("bridge/7530",32));
     assert(!identifier_valid("ab",32)&&!identifier_valid("Bridge",32));
     assert(!identifier_valid("123456789012345678901234567890123",32));
@@ -81,7 +121,16 @@ int main(void){
     assert(mutate&&pruned.count==0&&pruned.next_remote_id==457);
     assert(!request_id_valid("../../bad")&&!request_id_valid("bad/+"));assert(request_id_valid("id-012_abc"));
     cJSON *nan=cJSON_CreateNumber(NAN);uint64_t integer;assert(!json_integer(nan,&integer));cJSON_Delete(nan);
+    cJSON *infinite=cJSON_CreateNumber(INFINITY);assert(!json_integer(infinite,&integer));cJSON_Delete(infinite);
     registry=r;provider_ready=0;
+    cJSON_Hooks hooks={failing_malloc,tracked_free};
+    cJSON_InitHooks(&hooks);
+    for(allocation_failure=1;allocation_failure<256;allocation_failure++){
+        allocation_calls=0;
+        management("{\"schema_version\":1,\"request_id\":\"oom\",\"operation\":\"list_devices\"}");
+        assert(!live_allocations);
+    }
+    cJSON_InitHooks(NULL);
     feedback(r.devices[0].uid,"level","55");assert(strstr(feedback_cache[0][1],"55"));
     feedback(r.devices[0].uid,"level","101");assert(strstr(feedback_cache[0][1],"55"));
     feedback(r.devices[0].uid,"position","40");assert(!*feedback_cache[0][3]);
@@ -89,6 +138,7 @@ int main(void){
     feedback(r.devices[0].uid,"color_temperature","2700");assert(strstr(feedback_cache[0][2],"2700"));
     assert(fvb_registry_add(&registry,registry.revision,"FVB1123456789ABCDEF","Thermo",FVB_PROFILE_THERMOSTAT,NULL)==FVB_REGISTRY_OK);
     feedback(registry.devices[1].uid,"target_temperature","nan");assert(!*feedback_cache[1][4]);
+    feedback(registry.devices[1].uid,"target_temperature","inf");assert(!*feedback_cache[1][4]);
     feedback(registry.devices[1].uid,"target_temperature","20.5");assert(strstr(feedback_cache[1][4],"20.5"));
     feedback(registry.devices[1].uid,"target_temperature","20.2");assert(strstr(feedback_cache[1][4],"20.5"));
     feedback(registry.devices[1].uid,"timer","boost 4294967296");assert(!*feedback_cache[1][6]);
