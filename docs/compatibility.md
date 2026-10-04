@@ -21,5 +21,6 @@ comparison, isolated self-tests and a live laboratory qualification run.
 The listed Mesh combination is functionally validated, including exact
 brightness round trips. It is not the recommended latency topology: commands
 from the 6690 master to virtual endpoints on the 7530 took about 6–7 seconds in
-the laboratory. Direct pairing of the 440 with the dedicated bridge box is
-planned for low-latency validation.
+the laboratory. Direct pairing of the 440 with the dedicated bridge box is the
+tested target topology. Version 0.1.5 completed switch and brightness command
+round trips in both directions and is now undergoing longer everyday testing.

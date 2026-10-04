@@ -71,7 +71,7 @@ can preserve its FRITZ! identity and existing 440 assignments.
 
 ## Current compatibility and limitations
 
-Version 0.1.2 was validated with:
+Version 0.1.5 was validated with:
 
 - FRITZ!Box 7530 classic / HW236, FRITZ!OS 8.25;
 - FRITZ!Box 6690 Cable, FRITZ!OS 8.25, as Mesh master;
@@ -84,8 +84,19 @@ disabled on the bridge until a new version has been analysed and allowlisted.
 
 The validated Mesh-master route works but added about 6-7 seconds of command
 latency in the laboratory. Pairing the 440 directly with the dedicated bridge
-box is the intended low-latency topology and still needs final qualification.
+box is the intended topology and has been tested in both directions with
+switching and dimming. Version 0.1.5 is now in extended everyday testing.
 See [Compatibility](docs/compatibility.md) for the exact baseline.
+
+### Project status and contributions
+
+This is a working experimental beta, not a finished appliance. The supported
+profiles, persistent device lifecycle, MQTT recovery and direct 440 command
+path have automated tests and have been exercised on the documented laboratory
+setup. Useful contributions include longer real-world testing, verification on
+additional FRITZ!OS builds and hardware, better Home Assistant diagnostics,
+parser fuzzing and further modularisation of the native MQTT bridge. Please
+report reproducible findings in [GitHub Issues](https://github.com/Allcrafter1/fritz-virtual-bridge/issues).
 
 No AVM firmware, AVM binary or modified firmware image is distributed here.
 The user builds their own image locally. Read [Licensing and distribution

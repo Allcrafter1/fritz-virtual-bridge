@@ -81,7 +81,7 @@ erhalten bleiben.
 
 ## Aktuelle Kompatibilität und Grenzen
 
-Version 0.1.2 wurde mit diesem Stand geprüft:
+Version 0.1.5 wurde mit diesem Stand geprüft:
 
 - FRITZ!Box 7530 classic / HW236, FRITZ!OS 8.25;
 - FRITZ!Box 6690 Cable, FRITZ!OS 8.25, als Mesh Master;
@@ -94,10 +94,22 @@ FRITZ!OS-Updates müssen auf der Bridge deaktiviert bleiben, bis eine neue
 Version untersucht und freigegeben wurde.
 
 Der getestete Weg über einen Mesh Master funktioniert, verursachte im Labor
-aber etwa 6-7 Sekunden Befehlsverzögerung. Für geringe Latenz soll das 440
-direkt mit der Bridge-Box verbunden werden; die abschließende Qualifikation
-dieser Topologie steht noch aus. Die exakten Daten stehen unter
+aber etwa 6-7 Sekunden Befehlsverzögerung. Für die vorgesehene Topologie wird
+das 440 direkt mit der Bridge-Box verbunden. Schalten und Dimmen wurden dort
+inzwischen in beide Richtungen geprüft. Version 0.1.5 befindet sich jetzt im
+längeren Alltagstest. Die exakten Daten stehen unter
 [Kompatibilität](docs/compatibility.md).
+
+### Projektstand und Mitmachen
+
+Das Projekt ist eine funktionierende experimentelle Beta und noch kein fertiges
+Produkt. Die unterstützten Profile, dauerhafte Geräteverwaltung,
+MQTT-Wiederherstellung und der direkte 440-Befehlspfad besitzen automatisierte
+Tests und wurden auf dem beschriebenen Laboraufbau praktisch geprüft. Besonders
+hilfreich sind längere Praxistests, Tests mit weiteren FRITZ!OS-Versionen und
+Geräten, bessere Home-Assistant-Diagnosen, Parser-Fuzzing und eine weitere
+Aufteilung der nativen MQTT-Bridge. Nachvollziehbare Ergebnisse bitte über
+[GitHub Issues](https://github.com/Allcrafter1/fritz-virtual-bridge/issues) melden.
 
 Dieses Repository verteilt keine AVM-Firmware, keine AVM-Programme und keine
 modifizierten Firmware-Images. Jeder Nutzer baut sein Image lokal selbst. Lies
