@@ -335,7 +335,7 @@ use extended registration and the device button or menu instead of deleting
 the retained entry and starting from scratch. A Freetz backup belongs only to
 the bridge box for which it was created.
 This follows FRITZ's documented
-[restore flow for Smart Home and DECT devices](https://fritz.com/apps/knowledge-base/FRITZ-Box-7490/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
+[restore flow for Smart Home and DECT devices](https://fritz.com/apps/knowledge-base/FRITZ-Box-7530/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
 
 ## Updating
 

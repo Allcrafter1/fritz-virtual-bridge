@@ -349,7 +349,7 @@ erhaltener Konfiguration eine erneute Funkanmeldung benötigen. Melde sie dann
 Gerätemenü erneut an, statt den erhaltenen Eintrag zu löschen und von vorn
 anzulegen. Das Freetz-Backup gilt nur für die dafür vorgesehene Bridge-Box.
 Das entspricht dem von FRITZ dokumentierten
-[Wiederherstellungsablauf für Smart-Home- und DECT-Geräte](https://fritz.com/apps/knowledge-base/FRITZ-Box-7490/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
+[Wiederherstellungsablauf für Smart-Home- und DECT-Geräte](https://fritz.com/apps/knowledge-base/FRITZ-Box-7530/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
 
 ## Aktualisieren
 
