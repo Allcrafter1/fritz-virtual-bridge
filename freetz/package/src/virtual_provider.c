@@ -724,7 +724,7 @@ ssize_t write(int fd,const void*buf,size_t n){
     }
     return original_write(fd,buf,n);
 }
-ssize_t send(int fd,const void*buf,size_t n,int flags){
+static ssize_t send_frame(int fd,const void*buf,size_t n,int flags){
     if(!original_send)original_send=dlsym(RTLD_NEXT,"send");
     const unsigned char*p=buf;
     if(enabled && n>=24 && p[0]==7 && p[1]==3 && u16(p+2)==n &&
@@ -870,6 +870,34 @@ ssize_t send(int fd,const void*buf,size_t n,int flags){
         provider_unlock();
     }
     return original_send(fd,buf,n,flags);
+}
+ssize_t send(int fd,const void*buf,size_t n,int flags){
+    if(!original_send)original_send=dlsym(RTLD_NEXT,"send");
+    const unsigned char *p=buf;
+    /* The native stream sender can batch several complete protocol frames
+     * into one send(). Validate the whole batch before consuming anything;
+     * otherwise coalesced commands bypass the virtual device handler. */
+    pthread_mutex_lock(&lock);
+    int local=enabled && fd==incoming_fd;
+    provider_unlock();
+    if(!local || n<16)return original_send(fd,buf,n,flags);
+    size_t offset=0;
+    while(offset<n){
+        if(n-offset<16 || p[offset+1]!=3)return original_send(fd,buf,n,flags);
+        unsigned length=u16(p+offset+2);
+        if(length<16 || length>n-offset)return original_send(fd,buf,n,flags);
+        offset+=length;
+    }
+    offset=0;
+    if(u16(p+2)<n)DEBUG("provider: processing batched frames bytes=%zu\n",n);
+    while(offset<n){
+        unsigned length=u16(p+offset+2);
+        ssize_t sent=send_frame(fd,p+offset,length,flags);
+        if(sent<0)return offset?(ssize_t)offset:sent;
+        offset+=(size_t)sent;
+        if((size_t)sent<length)break;
+    }
+    return (ssize_t)offset;
 }
 int close(int fd){
     if(!original_close)return syscall(SYS_close,fd);

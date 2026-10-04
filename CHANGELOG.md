@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4 - 2026-10-04
+
+- Handle multiple native protocol messages in one stream write. Previously,
+  batched commands bypassed the virtual provider, causing intermittent missing
+  dimming commands and inconsistent controller feedback.
+- Validate complete batches before processing and preserve command order and
+  unrelated-frame forwarding. Add regression tests reproducing the previous
+  failure, mixed traffic and malformed batches.
+- Requires updating the FRITZ!Box provider; an integration-only update does not
+  change the native command path.
+
 ## 0.1.3 - 2026-10-04
 
 - Restore each device's persisted remote ID explicitly after provider restarts,

@@ -151,18 +151,27 @@ stays disabled.
 
 ## Latency topology
 
-The MQTT leg is local push. In the current validation topology, however, the
+The MQTT leg is local push. In the initial validation topology, however, the
 440 is paired with a 6690 Mesh master while virtual endpoints originate on a
 7530 Mesh repeater. Measured absolute dim commands all reached Home Assistant
 with the correct value, but the Mesh path serialized them at roughly 6–7
 seconds each. The confirmed Home Assistant state reached the FRITZ entity about
 0.6 seconds after the source entity changed.
 
-Fast interactive control therefore requires the controller and virtual
-provider to use the same bridge box. Pairing the 440 directly with the
-dedicated 7530 removes the master-to-repeater command leg; that topology is the
-next latency qualification target. Rapid repeated commands in the Mesh test
-topology can appear lost while earlier commands are still in transit.
+For interactive control, pair the controller directly with the dedicated
+bridge box. The laboratory 440 now uses the 7530 directly. Captured commands
+that reached MQTT were forwarded to Zigbee2MQTT within about 0–45 ms; in one
+physical test Zigbee2MQTT reported the requested values about 180–210 ms after
+the bridge command. These are segment measurements, not button-to-light
+latency guarantees or proof of physical bulb response.
+
+Direct-pairing investigation also found a separate provider defect fixed in
+0.1.4: FRITZ!OS may combine several protocol frames in a single `send()`.
+Requiring the first frame's length to equal the entire buffer silently bypassed
+virtual command handling for such batches. The provider now validates the full
+batch, processes its frames in order and preserves unrelated traffic. The
+regression test fails against the old provider and passes against the fix.
+This is independent of MQTT polling and does not require a faster HA poll rate.
 
 ## Safety and rollback
 

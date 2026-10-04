@@ -105,6 +105,29 @@ static int dynamic_test(void){
  CHECK(send(s[1],command,sizeof(command),0)==sizeof(command));CHECK(frame(s[1],p,458,118)&&p[36]==60);
  ssize_t n=recv(watch,event,sizeof(event)-1,0);CHECK(n>0);event[n]=0;
  CHECK(strstr(event,"FVB0000000000000003")&&strstr(event,"60"));
+ /* Native stream batching must preserve both commands and their order. */
+ unsigned char batch[88],passed[89];
+ memcpy(batch,command,44);memcpy(batch+44,command,44);
+ batch[36]=40;batch[80]=70;
+ CHECK(send(s[1],batch,sizeof(batch),0)==sizeof(batch));
+ CHECK(frame(s[1],p,458,118)&&p[36]==40);
+ CHECK(frame(s[1],p,458,118)&&p[36]==70);
+ for(unsigned i=0;i<2;i++){
+  n=recv(watch,event,sizeof(event)-1,0);CHECK(n>0);event[n]=0;
+  CHECK(strstr(event,i?"\"level\":70":"\"level\":40"));
+ }
+ /* An unrelated first frame must pass through without hiding the second. */
+ batch[8]=0;batch[9]=100;
+ CHECK(send(s[1],batch,sizeof(batch),0)==sizeof(batch));
+ CHECK(recv(s[0],passed,44,MSG_WAITALL)==44&&!memcmp(passed,batch,44));
+ CHECK(frame(s[1],p,458,118)&&p[36]==70);
+ n=recv(watch,event,sizeof(event)-1,0);CHECK(n>0);event[n]=0;
+ CHECK(strstr(event,"\"level\":70"));
+ /* No partial consumption if the complete buffer is not valid framing. */
+ memcpy(passed,command,44);passed[44]=0;
+ CHECK(send(s[1],passed,45,0)==45);
+ CHECK(recv(s[0],batch,45,MSG_WAITALL)==45&&!memcmp(batch,passed,45));
+ CHECK(poll(&wait,1,50)==0);
  /* Route each remaining profile through the real intercepted send path. */
  unsigned char sw[28]={7,3,0,28,0,0,0,3,1,200,0,0,0,0,0,12,0,0,0,15,0,4,0,0,0,0,0,0};
  CHECK(send(s[1],sw,sizeof(sw),0)==sizeof(sw));CHECK(frame(s[1],p,456,15));
@@ -124,7 +147,7 @@ static int dynamic_test(void){
  CHECK(expect_control(path,"ANNOUNCE FVB0000000000000003",1));CHECK(frame(s[1],p,458,0));CHECK(frame(s[1],p,458,95));
  CHECK(expect_control(path,"LEVEL FVB0000000000000003 50",0));
  CHECK(expect_control(path,"UNIT FVB0000000000000003",1));CHECK(frame(s[1],p,458,98));
- CHECK(frame(s[1],p,458,118));CHECK(frame(s[1],p,458,118)&&p[36]==60);
+ CHECK(frame(s[1],p,458,118));CHECK(frame(s[1],p,458,118)&&p[36]==70);
  /* Durable allocation can contain gaps after deletion and process restart. */
  CHECK(expect_control(path,"RESTORE FVB0000000000000010 500 switch Restored",1));
  CHECK(frame(s[1],p,500,0));CHECK(frame(s[1],p,500,35));CHECK(frame(s[1],p,500,15));
