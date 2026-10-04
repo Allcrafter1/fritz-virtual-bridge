@@ -9,6 +9,8 @@
 - Clarified the recommended dedicated Mosquitto-app login and the separate MQTT
   credentials used by the bridge.
 - Fixed the Freetz service status check to use the MQTT bridge PID file.
+- Fixed missing labels in the Freetz package UI by declaring its translated
+  CGI file to the Freetz language build step.
 - Documented update isolation, two-part backups and direct 440 pairing with the
   bridge box.
 
