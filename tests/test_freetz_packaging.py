@@ -12,3 +12,14 @@ def test_translated_freetz_cgi_is_declared() -> None:
 
     assert cgi_path in language_manifest
     assert "$(lang" in (PACKAGE_FILES / "root" / cgi_path).read_text()
+
+
+def test_provider_watchdog_is_packaged() -> None:
+    """Keep the local AHA control channel self-healing after deployment."""
+    init_script = (
+        PACKAGE_FILES / "root" / "etc" / "init.d" / "rc.fritzvirtual"
+    ).read_text()
+
+    assert "provider health check failed three times" in init_script
+    assert '"$0" watchdog' in init_script
+    assert "stop_watchdog || return 1" in init_script

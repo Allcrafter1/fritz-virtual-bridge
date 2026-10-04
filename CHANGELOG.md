@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 - 2026-10-04
+
+- Detect an unresponsive internal provider control channel and disconnect the
+  stale watcher instead of silently accepting unusable MQTT state.
+- Add a local watchdog that restarts only the isolated FRITZ!OS Smart Home
+  process after three failed health checks; internet and network services are
+  not restarted.
+- Bound local control-socket connection attempts so a full or stale queue
+  cannot block recovery indefinitely.
+
 ## 0.1.1 - 2026-10-04
 
 - Reworked the README into a problem-first onboarding path for FRITZ!Smart

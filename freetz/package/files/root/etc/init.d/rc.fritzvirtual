@@ -4,6 +4,7 @@
 DAEMON=fritzvirtual
 DAEMON_LONG_NAME="FRITZ! Virtual Bridge"
 PID_FILE=/var/run/fritzvirtual/mqtt.pid
+WATCHDOG_PID=/var/run/fritzvirtual/watchdog.pid
 . /etc/init.d/modlibrc
 
 EXPECTED_AHA_SHA256='4e85494198125132876aafa0cb88cf2d873266904b7098b6e4213c3ce8a38aaf'
@@ -40,9 +41,88 @@ wait_for_aha_stop() {
 	return 1
 }
 
+wait_for_provider() {
+	for unused in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45; do
+		[ -S /var/tmp/aha-virtual-provider.ctl ] &&
+			"$CONTROL" GET 2>/dev/null | grep -q '"connected":true' && return 0
+		sleep 1
+	done
+	return 1
+}
+
 start_stock_aha() {
 	rm -f /var/tmp/homeauto /var/tmp/me_avm_home_external.ctl /var/tmp/aha-virtual-provider.ctl
 	/etc/init.d/S78-aha start
+}
+
+start_virtual_aha() {
+	rm -f /var/tmp/homeauto /var/tmp/me_avm_home_external.ctl /var/tmp/aha-virtual-provider.ctl
+	if [ "$FRITZVIRTUAL_DEBUG" = yes ]; then
+		AHA_VIRTUAL_LAB=1 AHA_VIRTUAL_HANFUN_EXPERIMENT=1 AHA_VIRTUAL_DEBUG=1 \
+			LD_PRELOAD="$PROVIDER" /usr/bin/aha >>/var/log/fritzvirtual-aha.log 2>&1 &
+	else
+		AHA_VIRTUAL_LAB=1 AHA_VIRTUAL_HANFUN_EXPERIMENT=1 \
+			LD_PRELOAD="$PROVIDER" /usr/bin/aha >>/var/log/fritzvirtual-aha.log 2>&1 &
+	fi
+	wait_for_provider
+}
+
+recover_virtual_aha() {
+	old_pid="$(pidof aha 2>/dev/null)"
+	[ -z "$old_pid" ] || kill $old_pid
+	wait_for_aha_stop || {
+		echo "aha did not stop; refusing to force it" >&2
+		return 1
+	}
+	start_virtual_aha && return 0
+	echo "virtual provider did not connect; restoring stock aha" >&2
+	old_pid="$(pidof aha 2>/dev/null)"
+	[ -z "$old_pid" ] || kill $old_pid
+	wait_for_aha_stop
+	start_stock_aha
+	return 1
+}
+
+watchdog() {
+	trap 'exit 0' INT TERM
+	failures=0
+	while sleep 5; do
+		if "$CONTROL" GET 2>/dev/null | grep -q '"connected":true'; then
+			failures=0
+			continue
+		fi
+		failures=$((failures + 1))
+		[ "$failures" -ge 3 ] || continue
+		echo "$(date): provider health check failed three times; restarting aha" >&2
+		if recover_virtual_aha; then
+			echo "$(date): virtual provider recovered" >&2
+		else
+			echo "$(date): virtual provider recovery failed; retrying later" >&2
+			sleep 30
+		fi
+		failures=0
+	done
+}
+
+start_watchdog() {
+	"$0" watchdog >>/var/log/fritzvirtual-mqtt.log 2>&1 &
+	echo $! >"$WATCHDOG_PID"
+}
+
+stop_watchdog() {
+	[ -r "$WATCHDOG_PID" ] || return 0
+	watchdog_pid="$(cat "$WATCHDOG_PID")"
+	case "$watchdog_pid" in
+		*[!0-9]*|"") ;;
+		*) kill "$watchdog_pid" 2>/dev/null ;;
+	esac
+	rm -f "$WATCHDOG_PID"
+	for unused in 1 2 3 4 5 6 7; do
+		[ ! -d "/proc/$watchdog_pid" ] && return 0
+		sleep 1
+	done
+	echo "provider watchdog did not stop" >&2
+	return 1
 }
 
 start() {
@@ -78,39 +158,15 @@ start() {
 	}
 	write_mqtt_config || return 1
 
-	old_pid="$(pidof aha 2>/dev/null)"
-	[ -z "$old_pid" ] || kill $old_pid
-	wait_for_aha_stop || {
-		echo "aha did not stop; refusing to force it" >&2
-		return 1
-	}
-	rm -f /var/tmp/homeauto /var/tmp/me_avm_home_external.ctl /var/tmp/aha-virtual-provider.ctl
-	if [ "$FRITZVIRTUAL_DEBUG" = yes ]; then
-		AHA_VIRTUAL_LAB=1 AHA_VIRTUAL_HANFUN_EXPERIMENT=1 AHA_VIRTUAL_DEBUG=1 \
-			LD_PRELOAD="$PROVIDER" /usr/bin/aha >>/var/log/fritzvirtual-aha.log 2>&1 &
-	else
-		AHA_VIRTUAL_LAB=1 AHA_VIRTUAL_HANFUN_EXPERIMENT=1 \
-			LD_PRELOAD="$PROVIDER" /usr/bin/aha >>/var/log/fritzvirtual-aha.log 2>&1 &
-	fi
-
-	for unused in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45; do
-		[ -S /var/tmp/aha-virtual-provider.ctl ] &&
-			"$CONTROL" GET 2>/dev/null | grep -q '"connected":true' && break
-		sleep 1
-	done
-	"$CONTROL" GET 2>/dev/null | grep -q '"connected":true' || {
-		echo "virtual provider did not connect; restoring stock aha" >&2
-		kill "$(pidof aha 2>/dev/null)" 2>/dev/null
-		wait_for_aha_stop
-		start_stock_aha
-		return 1
-	}
+	recover_virtual_aha || return 1
 
 	LD_LIBRARY_PATH=/usr/lib/freetz "$BRIDGE" "$MQTT_CONFIG" >>/var/log/fritzvirtual-mqtt.log 2>&1 &
 	echo $! >"$BRIDGE_PID"
+	start_watchdog
 }
 
 stop() {
+	stop_watchdog || return 1
 	if [ -r "$BRIDGE_PID" ]; then
 		bridge_pid="$(cat "$BRIDGE_PID")"
 		case "$bridge_pid" in
@@ -147,5 +203,6 @@ case "$1" in
 	stop) modlib_stop ;;
 	restart) modlib_restart ;;
 	status) modlib_status ;;
+	watchdog) watchdog ;;
 	*) echo "Usage: $0 [load|unload|start|stop|restart|status]" >&2; exit 1 ;;
 esac

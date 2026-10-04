@@ -14,7 +14,11 @@ int main(int argc,char **argv){
     struct sockaddr_un address={.sun_family=AF_UNIX};strcpy(address.sun_path,path);
     struct timeval timeout={3,0};
     setsockopt(socket_fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
-    if(connect(socket_fd,(struct sockaddr*)&address,sizeof(address)))return 4;
+    /* A full/stale local accept queue can otherwise leave connect() blocked
+     * forever.  The watchdog must always regain control so it can restart the
+     * isolated AHA process. */
+    setsockopt(socket_fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+    if(connect(socket_fd,(struct sockaddr*)&address,sizeof(address))){close(socket_fd);return 4;}
     char command[80];int command_length=snprintf(command,sizeof(command),"%s\n",argv[1]);
     if(command_length<=0||command_length>=(int)sizeof(command)||
        send(socket_fd,command,(size_t)command_length,MSG_NOSIGNAL)!=command_length)return 5;

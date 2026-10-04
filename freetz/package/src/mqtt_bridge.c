@@ -116,10 +116,10 @@ static int provider_connect(void){
     struct sockaddr_un address={.sun_family=AF_UNIX};
     if(strlen(config.control_socket)>=sizeof(address.sun_path)){close(fd);return -1;}
     strcpy(address.sun_path,config.control_socket);
-    if(connect(fd,(struct sockaddr*)&address,sizeof(address))){close(fd);return -1;}
     struct timeval timeout={2,0};
     setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&timeout,sizeof(timeout));
     setsockopt(fd,SOL_SOCKET,SO_SNDTIMEO,&timeout,sizeof(timeout));
+    if(connect(fd,(struct sockaddr*)&address,sizeof(address))){close(fd);return -1;}
     return fd;
 }
 static cJSON *provider_query(const char *request){
@@ -559,15 +559,26 @@ static void watch_provider(void){
         pthread_mutex_lock(&registry_lock);reconcile_provider_locked();publish_registry_locked();pthread_mutex_unlock(&registry_lock);
         struct timeval no_timeout={0,0};setsockopt(fd,SOL_SOCKET,SO_RCVTIMEO,&no_timeout,sizeof(no_timeout));
         time_t retry=time(NULL)+5;
+        unsigned health_failures=0;
         while(running){
             pthread_mutex_lock(&registry_lock);
             if(finish_units_locked())publish_registry_locked();
             if(time(NULL)>=retry){
                 cJSON *status=provider_query("GET");
                 const cJSON *generation=cJSON_GetObjectItemCaseSensitive(status,"generation");
-                int changed=!cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(status,"connected"))||
+                int healthy=cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(status,"connected"))&&
+                    cJSON_IsNumber(generation);
+                int changed=!healthy||
                     !cJSON_IsNumber(generation)||generation->valuedouble!=provider_generation;
                 cJSON_Delete(status);
+                if(!healthy){
+                    health_failures++;
+                    if(health_failures>=3){
+                        fprintf(stderr,"mqtt_bridge: provider control channel is unresponsive\n");
+                        pthread_mutex_unlock(&registry_lock);
+                        break;
+                    }
+                }else health_failures=0;
                 if(changed||(!provider_ready&&!unit_due)){reconcile_provider_locked();publish_registry_locked();}
                 retry=time(NULL)+5;
             }

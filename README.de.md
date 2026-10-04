@@ -81,7 +81,7 @@ erhalten bleiben.
 
 ## Aktuelle Kompatibilität und Grenzen
 
-Version 0.1.1 wurde mit diesem Stand geprüft:
+Version 0.1.2 wurde mit diesem Stand geprüft:
 
 - FRITZ!Box 7530 classic / HW236, FRITZ!OS 8.25;
 - FRITZ!Box 6690 Cable, FRITZ!OS 8.25, als Mesh Master;
