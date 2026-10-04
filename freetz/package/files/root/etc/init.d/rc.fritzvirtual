@@ -3,6 +3,7 @@
 
 DAEMON=fritzvirtual
 DAEMON_LONG_NAME="FRITZ! Virtual Bridge"
+PID_FILE=/var/run/fritzvirtual/mqtt.pid
 . /etc/init.d/modlibrc
 
 EXPECTED_AHA_SHA256='4e85494198125132876aafa0cb88cf2d873266904b7098b6e4213c3ce8a38aaf'
@@ -10,7 +11,7 @@ PROVIDER=/usr/lib/fritzvirtual/virtual_provider.so
 CONTROL=/usr/bin/fritzvirtual-ctl
 BRIDGE=/usr/sbin/fritzvirtual-mqtt-bridge
 MQTT_CONFIG=/var/run/fritzvirtual/mqtt.conf
-BRIDGE_PID=/var/run/fritzvirtual/mqtt.pid
+BRIDGE_PID=$PID_FILE
 
 write_mqtt_config() {
 	mkdir -p /var/run/fritzvirtual || return 1

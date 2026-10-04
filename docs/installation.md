@@ -200,7 +200,11 @@ Then enable **Packages → F → FRITZ! Virtual Bridge** in `make menuconfig`.
    the bridge box as an IP client and, when needed, as a Mesh repeater. Give it
    a stable address or DHCP reservation. This network-specific step stays in
    FRITZ!OS; the installer does not change the computer's or box's normal LAN
-   configuration.
+   configuration. Under **System → Update → Auto-Update**, select the option
+   that only informs you about new FRITZ!OS versions. If the bridge remains in
+   the Mesh, also disable adoption of the Mesh Master's settings under **Home
+   Network → Mesh → Mesh Settings**. Do not start an update for this box from
+   the Mesh overview until that firmware has been validated by this project.
 3. Open the Freetz web interface on port `81`, secure its administration access,
    then open **Packages → FRITZ! Virtual Bridge**. No SSH setup is required.
 4. Enter the existing MQTT broker address, credentials and a unique bridge ID
@@ -241,6 +245,34 @@ One FRITZ device can be placed on several 440 controllers, so duplicate
 mappings are unnecessary. Reconfiguring a mapping can bind a replacement HA
 entity or change the FRITZ name without changing its FRITZ identity. A device
 type change creates a new mapping and requires a new 440 assignment.
+
+## Pair the FRITZ!Smart Control 440 directly with the bridge
+
+For low latency, the 440 must be registered directly with the bridge 7530. The
+7530 can remain a LAN IP client and even a Mesh repeater; the button command is
+still handled by its local `aha` first. Mesh is not required by the bridge. For
+maximum separation from the production router, remove the 7530 from the Mesh
+after its IP-client setup.
+
+Move the controller only after the package service, MQTT and at least one
+virtual device work:
+
+1. Back up both boxes as described below.
+2. On the 7530 open **Smart Home → Devices and Groups → Register Device**.
+3. Factory-reset the 440 from its device menu, then select **Start
+   registration** on the controller. Exact icons can vary with controller
+   firmware.
+4. Assign the virtual device to a display position in the 7530 interface and
+   test command and confirmed state in both directions.
+5. Delete the old disconnected 440 entry on the production box only after the
+   new direct path has passed the test.
+
+Display assignments stored on the production box are not migrated to the
+7530. Its configuration export is a rollback aid, not a migration mechanism
+for the 440 layout.
+
+FRITZ documents the [440 factory-reset procedure](https://fritz.com/apps/knowledge-base/FRITZ-Box-7590/3722_Werkseinstellungen-des-FRITZ-Tasters-laden/)
+and subsequent registration in its knowledge base.
 
 Do not keep an older MQTT automation active for the same virtual endpoint.
 During migration, validate the new integration with a new device first, then
@@ -285,6 +317,26 @@ topic ACL for `fritzvirtual/<bridge-id>/#`. An empty user and password work only
 with brokers that permit anonymous clients; the official Mosquitto app does
 not.
 
+## Back up the bridge
+
+Create two backups before every firmware change and after substantial device
+configuration:
+
+1. Create a password-protected export under **FRITZ!OS → System → Backup →
+   Save**. It contains the AVM configuration, including Smart Home settings.
+2. Create an encrypted backup under **Freetz → System → Backup & Restore**. It
+   also contains the persistent FRITZ! Virtual Bridge device registry and MQTT
+   configuration. Treat it as sensitive because it contains credentials, and
+   store its password separately.
+
+After restoring a FRITZ!Box export, DECT devices can occasionally require radio
+registration again even though their configuration was retained. In that case,
+use extended registration and the device button or menu instead of deleting
+the retained entry and starting from scratch. A Freetz backup belongs only to
+the bridge box for which it was created.
+This follows FRITZ's documented
+[restore flow for Smart Home and DECT devices](https://fritz.com/apps/knowledge-base/FRITZ-Box-7490/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
+
 ## Updating
 
 Automatic FRITZ!OS updates must remain disabled on the bridge box. Every new
@@ -292,8 +344,9 @@ firmware can change the private `aha` ABI and is unsupported until its binary
 has been analysed and explicitly allowlisted. Updating this project means
 building a new local image from the supported version and applying it through
 Freetz. The persistent registry under `/tmp/flash/fritzvirtual/registry.json`
-keeps device identities across ordinary restarts and compatible image updates;
-export the box configuration before every firmware change.
+keeps device identities across ordinary restarts and compatible image updates
+and is included in the Freetz backup; create both backups before every firmware
+change.
 
 Home Assistant integration updates follow the normal HACS flow. The bridge
 replays all desired mappings whenever its MQTT connection returns, and the HA

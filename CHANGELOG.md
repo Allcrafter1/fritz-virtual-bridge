@@ -8,6 +8,9 @@
   Codex-assisted installation prompt.
 - Clarified the recommended dedicated Mosquitto-app login and the separate MQTT
   credentials used by the bridge.
+- Fixed the Freetz service status check to use the MQTT bridge PID file.
+- Documented update isolation, two-part backups and direct 440 pairing with the
+  bridge box.
 
 ## 0.1.0 - 2026-10-04
 

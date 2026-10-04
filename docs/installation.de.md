@@ -231,7 +231,12 @@ erlaubt keine anonyme Anmeldung.
 
 1. Öffne die normale FRITZ!OS-Oberfläche der Bridge. Richte sie als IP-Client
    und bei Bedarf als Mesh Repeater ein. Vergib eine feste Adresse oder eine
-   DHCP-Reservierung. Deaktiviere automatische FRITZ!OS-Updates.
+   DHCP-Reservierung. Wähle unter **System → Update → Auto-Update** die Option
+   **Über neue FRITZ!OS-Versionen informieren**. Falls die Bridge im Mesh
+   bleibt, deaktiviere außerdem unter **Heimnetz → Mesh → Mesh Einstellungen**
+   die Übernahme der Einstellungen des Mesh Masters. Aktualisiere diese Box
+   auch nicht manuell aus der Mesh-Übersicht, solange der neue Stand hier nicht
+   freigegeben ist.
 2. Öffne die Freetz-Weboberfläche unter `http://<bridge-ip>:81` und sichere den
    Administrationszugang ab.
 3. Öffne **Pakete → FRITZ! Virtual Bridge**.
@@ -281,6 +286,36 @@ Gerätetyps erzeugt dagegen ein neues virtuelles Gerät.
 Wenn ein Mapping in Home Assistant gelöscht wird, entfernt die Integration
 auch das zugehörige virtuelle Gerät aus FRITZ!OS und aus dem Bridge-Register.
 
+## FRITZ!Smart Control 440 direkt mit der Bridge verbinden
+
+Für kurze Reaktionszeiten muss das 440 direkt an der Bridge-7530 angemeldet
+sein. Die 7530 darf dabei als IP-Client im LAN und auch als Mesh Repeater
+bleiben; der Tastendruck erreicht dann trotzdem zuerst ihr lokales `aha`. Für
+die Bridge-Funktion selbst ist Mesh nicht erforderlich. Wer die stärkste
+Trennung vom produktiven Router möchte, entfernt die 7530 nach ihrer
+IP-Client-Einrichtung vollständig aus dem Mesh.
+
+Führe den Umzug erst aus, nachdem Paketdienst, MQTT und mindestens ein
+virtuelles Gerät funktionieren:
+
+1. Sichere 6690 und 7530 wie im nächsten Abschnitt beschrieben.
+2. Öffne auf der 7530 **Smart Home → Geräte und Gruppen → Gerät anmelden**.
+3. Setze das 440 über sein Menü auf Werkseinstellungen und starte anschließend
+   dort **Anmeldung starten**. Die genauen Symbole können sich mit der
+   Gerätefirmware ändern.
+4. Weise das virtuelle Gerät in der Oberfläche der 7530 erneut einem
+   Anzeigeplatz zu und teste Befehl und bestätigten Zustand in beide
+   Richtungen.
+5. Lösche den alten, nun nicht mehr verbundenen 440-Eintrag auf der 6690 erst
+   nach dem erfolgreichen Test.
+
+Die auf der 6690 gespeicherten Anzeigeplätze werden nicht automatisch auf die
+7530 übertragen. Ein Export der 6690 ist deshalb eine Rückfallmöglichkeit,
+aber kein Migrationswerkzeug für das 440-Layout.
+
+FRITZ beschreibt das [Zurücksetzen des 440](https://fritz.com/apps/knowledge-base/FRITZ-Box-7590/3722_Werkseinstellungen-des-FRITZ-Tasters-laden/)
+und die anschließende Anmeldung in der eigenen Wissensdatenbank.
+
 ## Thermostat-Zeitplan
 
 Bei einem Zigbee2MQTT-Thermostat erkennt die Integration den geprüften
@@ -295,6 +330,27 @@ Home Assistant wieder her. Thermostate ohne passenden Zeitplanadapter behalten
 Solltemperatur, Modus sowie Wärme- und Kalt-Timer; nur die Anzeige der nächsten
 Änderung fehlt.
 
+## Bridge sichern
+
+Erstelle vor jedem Firmwarewechsel und nach einer größeren Gerätekonfiguration
+zwei Sicherungen:
+
+1. Unter **FRITZ!OS → System → Sicherung → Sichern** einen kennwortgeschützten
+   FRITZ!Box-Export. Er enthält die AVM-Konfiguration einschließlich der
+   Smart-Home-Einstellungen.
+2. Unter **Freetz → System → Sichern & Wiederherstellen** ein verschlüsseltes
+   Freetz-Backup. Dieses enthält auch die persistente Geräte-Registry und die
+   MQTT-Konfiguration von FRITZ! Virtual Bridge. Behandle die Datei wegen der
+   enthaltenen Zugangsdaten vertraulich und bewahre ihr Kennwort getrennt auf.
+
+Nach dem Einspielen einer FRITZ!Box-Sicherung können DECT-Geräte trotz
+erhaltener Konfiguration eine erneute Funkanmeldung benötigen. Melde sie dann
+über den erweiterten Anmeldemodus beziehungsweise die Gerätetaste oder das
+Gerätemenü erneut an, statt den erhaltenen Eintrag zu löschen und von vorn
+anzulegen. Das Freetz-Backup gilt nur für die dafür vorgesehene Bridge-Box.
+Das entspricht dem von FRITZ dokumentierten
+[Wiederherstellungsablauf für Smart-Home- und DECT-Geräte](https://fritz.com/apps/knowledge-base/FRITZ-Box-7490/4_Einstellungen-der-FRITZ-Box-sichern-und-wiederherstellen/).
+
 ## Aktualisieren
 
 Automatische FRITZ!OS-Updates müssen auf der Bridge ausgeschaltet bleiben. Ein
@@ -303,10 +359,10 @@ erst nach einer erneuten Prüfung freigegeben.
 
 Eine bereits mit Freetz laufende 7530 kann normalerweise aktualisiert werden,
 indem ein neues Image ohne `--flash` lokal gebaut und anschließend über die
-Freetz-Weboberfläche eingespielt wird. Exportiere vorher die FRITZ!Box-
-Konfiguration. Das persistente Register unter
-`/tmp/flash/fritzvirtual/registry.json` hält Geräteidentitäten über kompatible
-Neustarts und Updates hinweg.
+Freetz-Weboberfläche eingespielt wird. Erstelle vorher beide Sicherungen. Das
+persistente Register unter `/tmp/flash/fritzvirtual/registry.json` hält
+Geräteidentitäten über kompatible Neustarts und Updates hinweg und ist im
+Freetz-Backup enthalten.
 
 Die Home-Assistant-Integration wird über HACS aktualisiert. Beide Seiten
 wiederholen ihre gewünschte Konfiguration nach einer MQTT-Wiederverbindung;
